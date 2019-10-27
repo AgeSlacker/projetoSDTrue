@@ -38,7 +38,7 @@ public class MulticastServer extends Thread {
             // Load user list
             try {
                 System.out.println("Loading user list");
-                if (usersFile.exists())
+                if (usersFile.exists() && usersFile.length() > 0)
                     userList = (HashMap<String, User>) (new ObjectInputStream(new FileInputStream(usersFile))).readObject();
                 else {
                     usersFile.createNewFile();
@@ -116,7 +116,11 @@ public class MulticastServer extends Thread {
                         }
 
                         ArrayList<Page> urls = findPagesWithWords(searchWords);
-
+                        //
+                        int page = Integer.parseInt(parsedData.get("PAGE"));
+                        int lastIndex = 10 * (page + 1);
+                        int maxIndex = (lastIndex > urls.size()) ? urls.size() : lastIndex;
+                        urls = new ArrayList<>(urls.subList(10 * page, maxIndex));
                         response = PacketBuilder.SearchResults(reqId, urls);
                         break;
                     case "INDEX":
@@ -149,9 +153,14 @@ public class MulticastServer extends Thread {
         ArrayList<Page> pageList;
         synchronized (crawler.index) {
             pages = crawler.index.get(words.get(0));
+            if (pages == null) return new ArrayList<>();
             for (int i = 1; i < words.size(); i++) {
                 HashSet<Page> second = crawler.index.get(words.get(i));
+                if (second == null) return new ArrayList<>();
                 pages.retainAll(second);
+            }
+            if (pages == null) {
+                return new ArrayList<>();
             }
 
             pageList = new ArrayList<>(pages);
@@ -213,12 +222,16 @@ class WebCrawler extends Thread {
             }
 
             String title = doc.title().replaceAll("|", "").replaceAll(";", "");
-            String description = doc
-                    .select("meta[name=description]")
-                    .get(0)
-                    .attr("content")
-                    .replaceAll("|", "")
-                    .replaceAll(";", "");
+            Elements metaDescription = doc
+                    .select("meta[name=description]");
+            String description = "";
+            if (metaDescription.size() > 0) {
+                description = metaDescription
+                        .get(0)
+                        .attr("content")
+                        .replaceAll("|", "")
+                        .replaceAll(";", "");
+            }
             Page currentPage = new Page(url, title, description);
 
             Elements links = doc.select("a[href]");
@@ -227,7 +240,7 @@ class WebCrawler extends Thread {
                 for (Element link : links) {
                     //System.out.println(link.text() + "\n" + link.attr("abs:href") + "\n");
                     String linkSt = link.attr("abs:href");
-                    //url_list.add(linkSt);
+                    url_list.add(linkSt);
                     currentPage.links.add(linkSt);
                 }
             }

@@ -98,16 +98,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     } while (true);
                     break;
                 case 3: //Anon Search
-                    System.out.print("Type in the terms you want to search:");
-                    String termos = sc.nextLine();
-                    String[] words = termos.split(" ");
-                    String[] results = server.search(this, words, this.username);
-                    System.out.println("Search results:");
-                    for (String result : results)
-                        if (result != null)
-                            System.out.println(result);
-                    System.out.println("Press enter to exit");
-                    String s = sc.nextLine();
+                    searchMenu();
                     break;
                 case 0: //exit
                     break;
@@ -182,16 +173,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             choice = loggedUserMenu();
             switch (choice) {
                 case 1: //search
-                    System.out.print("Search words (space separated): ");
-                    String[] words = sc.nextLine().split(" ");
-
-                    try {
-                        String[] results = server.search(this, words, this.username);
-                        for (String result : results)
-                            System.out.println(result);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
+                    searchMenu();
                     break;
                 case 2: //history
                     printUserHistory();
@@ -276,5 +258,23 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         /*
         Inserir envio dos termos e print do recebido
          */
+    }
+
+    void searchMenu() {
+        System.out.print("Type in the terms you want to search:");
+        String termos = sc.nextLine();
+        String[] words = termos.split(" ");
+        String[] results = new String[0];
+        try {
+            results = server.search(this, words, this.username, 0);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Search results:");
+        for (String result : results)
+            if (result != null)
+                System.out.println(result);
+        System.out.print("Press enter to exit");
+        String s = sc.nextLine();
     }
 }

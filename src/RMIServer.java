@@ -95,17 +95,17 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     @Override
-    public String[] search(IClient client, String[] words, String user) throws RemoteException {
+    public String[] search(IClient client, String[] words, String user, int page) throws RemoteException {
         int packetReqId = reqId.getAndIncrement();
-        DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user);
+        DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user, page);
         sendPacket(packet, packetReqId);
         client.printMessage("Seach complete");
         String[] result = new String[10];
-        for (int i = 0; i < Integer.parseInt(receivedData.get("PAGE_COUNT")); i++) {
+        for (int i = 0; i < Integer.parseInt(receivedData.get("PAGE_COUNT")) - 1; i++) {
             String url = receivedData.get("URL_" + i);
             String name = receivedData.get("NAME_" + i);
             String desc = receivedData.get("DESC_" + i);
-            result[i] = url + name + "\n" + desc;
+            result[i] = url + " " + name + "\n" + desc;
         }
         return result;
 
@@ -159,7 +159,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
 class Receiver extends Thread {
     MulticastSocket socket;
-    byte[] buff = new byte[PacketBuilder.BUFF_SIZE];
+    byte[] buff = new byte[60000]; // TODO check this size baby
     DatagramPacket packet = new DatagramPacket(buff, buff.length);
 
     public Receiver(MulticastSocket socket) {
@@ -176,6 +176,7 @@ class Receiver extends Thread {
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
                 synchronized (RMIServer.waitList) {
                     RMIServer.waitList.put(reqId, parsedData);
+                    RMIServer.waitList.notifyAll();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
