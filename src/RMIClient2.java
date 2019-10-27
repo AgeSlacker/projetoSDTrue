@@ -135,7 +135,16 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             System.out.println("0. Exit");
             System.out.println("----------------------------------");
             System.out.print("Choose an option: ");
-            choice = Integer.parseInt(sc.nextLine());
+            while (true) {
+                try {
+                    choice = Integer.parseInt(sc.nextLine());
+                    break;
+                } catch (NumberFormatException e) {
+                    System.out.println("Not valid choice! ");
+                    System.out.print("Choose an option: ");
+                    continue;
+                }
+            }
             if ((choice < 0 || choice > 3))
                 System.out.println("Not valid choice: " + choice);
         } while (choice < 0 || choice > 3);
@@ -158,7 +167,16 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             System.out.println("0. Exit");
             System.out.println("----------------------------------");
             System.out.print("Choose an option: ");
-            choice = Integer.parseInt(sc.nextLine());
+            while (true) {
+                try {
+                    choice = Integer.parseInt(sc.nextLine());
+                    break;
+                } catch (NumberFormatException e) {
+                    System.out.println("Not valid choice! ");
+                    System.out.print("Choose an option: ");
+                    continue;
+                }
+            }
             if ((this.isAdmin && (choice >= 0 && choice <= 7)) || (choice >= 0 || choice <= 3))
                 break;
             System.out.println("Not valid choice: " + choice);
