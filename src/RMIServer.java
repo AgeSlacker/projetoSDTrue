@@ -82,6 +82,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         }
         synchronized (loggedUsers) {
             loggedUsers.put(name, client);
+            System.out.println("Current logged users: " + loggedUsers.keySet().toString());
         }
         return result;
     }
@@ -128,8 +129,8 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     @Override
     public PacketBuilder.RESULT grantAdmin(IClient client, String user) throws RemoteException {
         int packerReqId = reqId.getAndIncrement();
-        //DatagramPacket packet = PacketBuilder.IndexPacket(packerReqId, );
-        //sendPacket(packet, packerReqId);
+        DatagramPacket packet = PacketBuilder.GrantAdmin(packerReqId, user);
+        sendPacket(packet, packerReqId);
         return PacketBuilder.RESULT.valueOf(receivedData.get("RESULT"));
     }
 
@@ -180,11 +181,15 @@ class Receiver extends Thread {
                 HashMap<String, String> parsedData = PacketBuilder.parsePacketData(new String(packet.getData()));
                 if (parsedData.get("TYPE").equals("REQUEST")) {
                     // TODO send notifications to users
-                }
-                int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
-                synchronized (RMIServer.waitList) {
-                    RMIServer.waitList.put(reqId, parsedData);
-                    RMIServer.waitList.notifyAll();
+                    IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
+                    client.setAdmin();
+                    client.printMessage("You're an admin now!! yay");
+                } else {
+                    int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
+                    synchronized (RMIServer.waitList) {
+                        RMIServer.waitList.put(reqId, parsedData);
+                        RMIServer.waitList.notifyAll();
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();

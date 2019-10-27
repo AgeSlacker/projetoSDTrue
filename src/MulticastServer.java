@@ -3,6 +3,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -73,6 +74,7 @@ public class MulticastServer extends Thread {
                 parsedData = PacketBuilder.parsePacketData(dataStr);
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
                 DatagramPacket response = null;
+                ArrayList<DatagramPacket> extraResponses = new ArrayList<>();
                 User user;
                 switch (parsedData.get("OPERATION")) {
                     case "REGISTER":
@@ -134,12 +136,33 @@ public class MulticastServer extends Thread {
                         user = userList.get(parsedData.get("USER"));
                         response = PacketBuilder.UserHistoryPacket(reqId, user.search_history);
                         break;
+                    case "GRANT":
+                        user = userList.get(parsedData.get("USER"));
+                        if (user == null) {
+                            response = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_NO_USER);
+                        } else {
+                            user.admin = true;
+                            userList.put(user.username, user);
+                            saveUsers();
+                            response = PacketBuilder.SuccessPacket(reqId);
+                            // TODO notify user
+
+                            extraResponses.add(PacketBuilder.AdminNotificationPacket(reqId, user.username));
+
+                        }
+                        break;
                     default:
                         break;
                 }
                 response.setPort(packet.getPort());
                 response.setAddress(packet.getAddress());
                 socket.send(response);
+
+                for (DatagramPacket extraPacket : extraResponses) {
+                    extraPacket.setPort(packet.getPort());
+                    extraPacket.setAddress(packet.getAddress());
+                    socket.send(extraPacket);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();

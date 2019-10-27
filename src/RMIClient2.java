@@ -200,7 +200,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
                     break;
                 case 4: //give permission
-
+                    givePermissions();
                     break;
                 case 5: //list users
 
@@ -257,11 +257,22 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
     public void givePermissions() {
-        System.out.println("Type a username of a user you want to turn into an admin:");
+        System.out.print("Type a username of a user you want to turn into an admin:");
         String username = sc.nextLine();
-        /*
-        Inserir envio dos termos e print do recebido
-         */
+        try {
+            PacketBuilder.RESULT result = server.grantAdmin(this, username);
+            switch (result) {
+                case SUCCESS:
+                    System.out.println("User " + username + " is now an admin.");
+                    break;
+                case ER_NO_USER:
+                    System.out.println("No user with username: " + username);
+                    break;
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void indexURL() {

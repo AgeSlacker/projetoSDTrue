@@ -10,15 +10,23 @@ public class PacketBuilder {
     static String REQUEST_TYPE = "TYPE|REQUEST;";
     StringBuilder sb = new StringBuilder();
 
-    public DatagramPacket build() {
-        byte[] data = sb.toString().getBytes();
+    public static DatagramPacket AdminNotificationPacket(int reqId, String username) {
+        StringBuilder sb = new StringBuilder();
+        String dataString = sb
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";") // TODO ver qual o req_id necessário. será que é mesmo ?
+                .append("OPERATION|GRANT_ADMIN_NOTIFICATION;")
+                .append("USERNAME|" + username + "\n")
+                .toString();
+        byte[] data = dataString.getBytes();
         return new DatagramPacket(data, data.length);
     }
+
 
     static DatagramPacket RegisterPacket(int reqId, String username, String password) {
         StringBuilder sb = new StringBuilder();
         String dataString = sb
-                .append("TYPE|REQUEST;")
+                .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|REGISTER;")
                 .append("USERNAME|" + username + ";")
@@ -31,7 +39,7 @@ public class PacketBuilder {
     static DatagramPacket LoginPacket(int reqId, String username, String password) {
         StringBuilder sb = new StringBuilder();
         String dataString = sb
-                .append("TYPE|REQUEST;")
+                .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|LOGIN;")
                 .append("USERNAME|" + username + ";")
@@ -65,19 +73,9 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
-    static DatagramPacket RegisterSuccessPacket(int reqId, String username) {
-        StringBuilder sb = new StringBuilder();
-        String dataString = sb
-                .append("TYPE|REPLY;")
-                .append("REQ_ID|" + reqId + ";")
-                .append("MSG|You're registered! Welcome " + username + "!\n").toString();
-        byte[] data = dataString.getBytes();
-        return new DatagramPacket(data, data.length);
-    }
-
     static DatagramPacket SearchPacket(int reqId, String[] wordList, String user, int page) {
         StringBuilder sb = new StringBuilder()
-                .append("TYPE|REQUEST;")
+                .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|SEARCH;")
                 .append("USER|" + user + ";")
@@ -98,6 +96,16 @@ public class PacketBuilder {
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|INDEX;")
                 .append("URL|" + url + "\n").toString();
+        byte[] data = dataString.getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+    static DatagramPacket GrantAdmin(int reqId, String username) {
+        String dataString = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|GRANT;")
+                .append("USER|" + username + "\n").toString();
         byte[] data = dataString.getBytes();
         return new DatagramPacket(data, data.length);
     }
@@ -164,7 +172,7 @@ public class PacketBuilder {
 
     static DatagramPacket URLListPacket(int reqId, ArrayList<String> urls) {
         StringBuilder sb = new StringBuilder()
-                .append("TYPE|REPLY;")
+                .append(REPLY_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("URL_COUNT|" + urls.size() + ";");
         for (int i = 0; i < urls.size() - 1; i++)
