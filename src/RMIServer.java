@@ -95,9 +95,9 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     @Override
-    public String[] search(IClient client, String[] words) throws RemoteException {
+    public String[] search(IClient client, String[] words, String user) throws RemoteException {
         int packetReqId = reqId.getAndIncrement();
-        DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words);
+        DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user);
         sendPacket(packet, packetReqId);
         client.printMessage("Seach complete");
         String[] result = new String[10];

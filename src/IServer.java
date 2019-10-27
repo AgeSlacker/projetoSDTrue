@@ -13,7 +13,7 @@ public interface IServer extends Remote {
 
     PacketBuilder.RESULT indexRequest(String url) throws RemoteException;
 
-    String[] search(IClient client, String[] words) throws RemoteException;
+    String[] search(IClient client, String[] words, String user) throws RemoteException;
 
     ArrayList<String> getUserHistory(IClient client, String username) throws RemoteException;
 }

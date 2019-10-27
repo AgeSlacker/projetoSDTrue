@@ -107,12 +107,13 @@ public class MulticastServer extends Thread {
                         ArrayList<String> searchWords = PacketBuilder.getSearchWords(parsedData);
                         System.out.println("User wants to search reverse index for these words:");
                         System.out.println(searchWords.toString());
-
-                        user = userList.get(parsedData.get("USER")); //TODO check USER ANOAN FICK
-
-                        //String.join(" ", searchWords)
-                        user.search_history.add(new Search("teste"));
-                        saveUsers();
+                        String username = parsedData.get("USER");
+                        // If logged user then save to hist search history
+                        if (!username.equals("null")) { // TODO dont like this :[
+                            user = userList.get(username); //TODO check USER ANOAN FICK
+                            user.search_history.add(new Search(String.join(" ", searchWords)));
+                            saveUsers();
+                        }
 
                         ArrayList<Page> urls = findPagesWithWords(searchWords);
 
@@ -211,7 +212,14 @@ class WebCrawler extends Thread {
 
             }
 
-            Page currentPage = new Page(url, doc.title(), doc.select("meta[name=description]").get(0).attr("content"));
+            String title = doc.title().replaceAll("|", "").replaceAll(";", "");
+            String description = doc
+                    .select("meta[name=description]")
+                    .get(0)
+                    .attr("content")
+                    .replaceAll("|", "")
+                    .replaceAll(";", "");
+            Page currentPage = new Page(url, title, description);
 
             Elements links = doc.select("a[href]");
             synchronized (url_list) { // TODO distribuir a carga com outros servers

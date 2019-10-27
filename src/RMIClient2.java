@@ -33,6 +33,9 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         this.server = server;
         int choice1 = -1;
         while (choice1 != 0) {
+            // User should not be logged in
+            this.username = null;
+            this.password = null;
             choice1 = mainMenu();
             switch (choice1) {
                 case 1: //login
@@ -98,7 +101,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     System.out.print("Type in the terms you want to search:");
                     String termos = sc.nextLine();
                     String[] words = termos.split(" ");
-                    String[] results = server.search(this, words);
+                    String[] results = server.search(this, words, this.username);
                     System.out.println("Search results:");
                     for (String result : results)
                         if (result != null)
@@ -183,7 +186,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     String[] words = sc.nextLine().split(" ");
 
                     try {
-                        String[] results = server.search(this, words);
+                        String[] results = server.search(this, words, this.username);
                         for (String result : results)
                             System.out.println(result);
                     } catch (RemoteException e) {

@@ -1,3 +1,4 @@
+import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,6 +8,12 @@ public class PacketBuilder {
     static int BUFF_SIZE = 1024;
     static String REPLY_TYPE = "TYPE|REPLY;";
     static String REQUEST_TYPE = "TYPE|REQUEST;";
+    StringBuilder sb = new StringBuilder();
+
+    public DatagramPacket build() {
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
 
     static DatagramPacket RegisterPacket(int reqId, String username, String password) {
         StringBuilder sb = new StringBuilder();
@@ -68,11 +75,12 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
-    static DatagramPacket SearchPacket(int reqId, String[] wordList) {
+    static DatagramPacket SearchPacket(int reqId, String[] wordList, String user) {
         StringBuilder sb = new StringBuilder()
                 .append("TYPE|REQUEST;")
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|SEARCH;")
+                .append("USER|" + user + ";")
                 .append("WORD_COUNT|" + wordList.length + ";");
         for (int i = 0; i < wordList.length - 1; i++) {
             String entry = "WORD_" + i + "|" + wordList[i] + ";";
@@ -169,13 +177,14 @@ public class PacketBuilder {
                 .append(REPLY_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("PAGE_COUNT|" + pages.size() + ";");
-        for (int i = 0; i < pages.size() - 1; i++)
+        for (int i = 0; i < pages.size() - 1; i++) {
             sb.append("URL_" + i + "|" + pages.get(i).url + ";")
                     .append("NAME_" + i + "|" + pages.get(i).name + ";")
                     .append("DESC_" + i + "|" + pages.get(i).description + ";");
+        }
         sb.append(String.format("URL_%d|%s;", pages.size() - 1, pages))
-                .append("NAME_" + pages.size() + "|" + pages.get(pages.size() - 1).name + ";")
-                .append("DESC_" + pages.size() + "|" + pages.get(pages.size() - 1).description + "\n");
+                .append("NAME_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).name + ";")
+                .append("DESC_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).description + "\n");
         byte[] data = sb.toString().getBytes();
         return new DatagramPacket(data, data.length);
     }
