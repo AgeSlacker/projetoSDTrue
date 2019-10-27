@@ -125,6 +125,14 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         return history;
     }
 
+    @Override
+    public PacketBuilder.RESULT grantAdmin(IClient client, String user) throws RemoteException {
+        int packerReqId = reqId.getAndIncrement();
+        //DatagramPacket packet = PacketBuilder.IndexPacket(packerReqId, );
+        //sendPacket(packet, packerReqId);
+        return PacketBuilder.RESULT.valueOf(receivedData.get("RESULT"));
+    }
+
     void sendPacket(DatagramPacket packet, int packetReqId) {
         packet.setAddress(group);
         packet.setPort(PORT);

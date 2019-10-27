@@ -16,4 +16,6 @@ public interface IServer extends Remote {
     String[] search(IClient client, String[] words, String user, int page) throws RemoteException;
 
     ArrayList<String> getUserHistory(IClient client, String username) throws RemoteException;
+
+    PacketBuilder.RESULT grantAdmin(IClient client, String user) throws RemoteException;
 }
