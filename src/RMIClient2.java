@@ -154,20 +154,20 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     public int loggedUserMenu() {
         int choice = 0;
         do {
-            System.out.println("----------------------------------");
-            System.out.println("1. Search");
-            System.out.println("2. History");
-            System.out.println("3. Consult pages hyperlinks");
-            if (this.isAdmin) {
-                System.out.println("4. Give Permission");
-                System.out.println("5. List Users");
-                System.out.println("6. Index URL ");
-                System.out.println("7. System info");
-            }
-            System.out.println("0. Exit");
-            System.out.println("----------------------------------");
-            System.out.print("Choose an option: ");
             while (true) {
+                System.out.println("----------------------------------");
+                System.out.println("1. Search");
+                System.out.println("2. History");
+                System.out.println("3. Consult pages hyperlinks");
+                if (this.isAdmin) {
+                    System.out.println("4. Give Permission");
+                    System.out.println("5. List Users");
+                    System.out.println("6. Index URL ");
+                    System.out.println("7. System info");
+                }
+                System.out.println("0. Exit");
+                System.out.println("----------------------------------");
+                System.out.print("Choose an option: ");
                 try {
                     choice = Integer.parseInt(sc.nextLine());
                     break;
