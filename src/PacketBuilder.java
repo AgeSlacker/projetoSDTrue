@@ -120,7 +120,8 @@ public class PacketBuilder {
         if (history.size() == 0) {
             sb.append("HIST_COUNT|" + history.size() + "\n");
         } else {
-            for (int i = 0; i < history.size(); i++) {
+            sb.append("HIST_COUNT|" + history.size() + ";");
+            for (int i = 0; i < history.size() - 1; i++) {
                 sb.append("DATE_" + i + "|" + history.get(i).time + ";");
                 sb.append("QUERY_" + i + "|" + history.get(i).query + ";");
             }

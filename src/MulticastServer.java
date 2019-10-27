@@ -126,7 +126,7 @@ public class MulticastServer extends Thread {
                         }
                         response = PacketBuilder.SuccessPacket(reqId);
                         break;
-                    case "HISTORY":
+                    case "HISTORY": // send user history
                         user = userList.get(parsedData.get("USER"));
                         response = PacketBuilder.UserHistoryPacket(reqId, user.search_history);
                         break;
