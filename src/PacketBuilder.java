@@ -75,12 +75,13 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
-    static DatagramPacket SearchPacket(int reqId, String[] wordList, String user) {
+    static DatagramPacket SearchPacket(int reqId, String[] wordList, String user, int page) {
         StringBuilder sb = new StringBuilder()
                 .append("TYPE|REQUEST;")
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|SEARCH;")
                 .append("USER|" + user + ";")
+                .append("PAGE|" + page + ";")
                 .append("WORD_COUNT|" + wordList.length + ";");
         for (int i = 0; i < wordList.length - 1; i++) {
             String entry = "WORD_" + i + "|" + wordList[i] + ";";
@@ -176,16 +177,20 @@ public class PacketBuilder {
     static DatagramPacket SearchResults(int reqId, ArrayList<Page> pages) {
         StringBuilder sb = new StringBuilder()
                 .append(REPLY_TYPE)
-                .append("REQ_ID|" + reqId + ";")
-                .append("PAGE_COUNT|" + pages.size() + ";");
-        for (int i = 0; i < pages.size() - 1; i++) {
-            sb.append("URL_" + i + "|" + pages.get(i).url + ";")
-                    .append("NAME_" + i + "|" + pages.get(i).name + ";")
-                    .append("DESC_" + i + "|" + pages.get(i).description + ";");
+                .append("REQ_ID|" + reqId + ";");
+        if (pages.size() == 0)
+            sb.append("PAGE_COUNT|" + pages.size() + "\n");
+        else {
+            sb.append("PAGE_COUNT|" + pages.size() + ";");
+            for (int i = 0; i < pages.size() - 1; i++) {
+                sb.append("URL_" + i + "|" + pages.get(i).url + ";")
+                        .append("NAME_" + i + "|" + pages.get(i).name + ";")
+                        .append("DESC_" + i + "|" + pages.get(i).description + ";");
+            }
+            sb.append(String.format("URL_%d|%s;", pages.size() - 1, pages))
+                    .append("NAME_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).name + ";")
+                    .append("DESC_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).description + "\n");
         }
-        sb.append(String.format("URL_%d|%s;", pages.size() - 1, pages))
-                .append("NAME_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).name + ";")
-                .append("DESC_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).description + "\n");
         byte[] data = sb.toString().getBytes();
         return new DatagramPacket(data, data.length);
     }
