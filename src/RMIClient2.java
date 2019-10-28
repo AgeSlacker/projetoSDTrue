@@ -122,7 +122,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         this.isAdmin = true;
     }
 
-    public int mainMenu() {
+    int mainMenu() {
         if (this.username != null) {
             try {
                 server.unregister(this.username);
@@ -156,7 +156,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         return choice;
     }
 
-    public int loggedUserMenu() {
+    int loggedUserMenu() {
         int choice = 0;
         do {
             while (true) {
@@ -191,7 +191,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         return choice;
     }
 
-    public void loggedUser() {
+    void loggedUser() {
         int choice = 1;
         while (choice != 0) {
             choice = loggedUserMenu();
@@ -235,14 +235,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
-    public void loggedUserSearch() {
-        System.out.print("Type in the terms you want to search:");
-        String termos = sc.nextLine();
-        /*
-        Inserir envio dos termos e print do recebido
-         */
-    }
-
     String untilNotEmpty(String ask, String repifnull) {
         String st = "";
         do {
@@ -256,7 +248,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
 
-    public void loggedUserHyperlink() {
+    void loggedUserHyperlink() {
 
         String url = untilNotEmpty("Type in the URL: ", "URL can't be empty");
 
@@ -273,7 +265,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
     }
 
-    public void givePermissions() {
+    void givePermissions() {
         String username = untilNotEmpty("Type a username of a user you want to turn into an admin:", "Usarname cannot be empty");
         try {
             PacketBuilder.RESULT result = server.grantAdmin(this, username);
@@ -291,7 +283,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
     }
 
-    public void indexURL() {
+    void indexURL() {
         String url = untilNotEmpty("URL: ", "Not able to index empty URL");
         try {
             PacketBuilder.RESULT result = server.indexRequest(url);
@@ -303,7 +295,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
-    public void systemInfo() {
+    void systemInfo() {
         /*
         Inserir envio dos termos e print do recebido
          */
