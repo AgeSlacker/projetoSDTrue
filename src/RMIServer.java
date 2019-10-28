@@ -1,8 +1,10 @@
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
+import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
@@ -15,6 +17,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     static HashMap<Integer, HashMap<String, String>> waitList = new HashMap<>();
     private static String MULTICAST_ADDRESS = "224.3.2.0";
     static HashMap<String, IClient> loggedUsers = new HashMap<>(); // TODO change to syncronized hashmap ?
+    static HashMap<String, ArrayList<String>> notifications = new HashMap<>();
     int TIMEOUT_TIME = 1000;
     MulticastSocket socket;
     InetAddress group;
@@ -81,8 +84,23 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             client.setAdmin();
         }
         synchronized (loggedUsers) {
-            loggedUsers.put(name, client);
+            if (result == PacketBuilder.RESULT.SUCCESS) {
+                loggedUsers.put(name, client);
+            }
             System.out.println("Current logged users: " + loggedUsers.keySet().toString());
+        }
+
+        ArrayList<String> notifications = RMIServer.notifications.get(name);
+        if (notifications != null && !notifications.isEmpty()) {
+            client.printMessage(notifications.remove(0));
+            DatagramPacket notificationDelivered = PacketBuilder.NotificationDelivered(packetReqId, name);
+            notificationDelivered.setAddress(group);
+            notificationDelivered.setPort(PORT);
+            try {
+                socket.send(notificationDelivered);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return result;
     }
@@ -198,13 +216,25 @@ class Receiver extends Thread {
                 socket.receive(packet);
                 System.out.println("Reciever receieved new packet : " + new String(packet.getData()));
                 HashMap<String, String> parsedData = PacketBuilder.parsePacketData(new String(packet.getData()));
+                int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
                 if (parsedData.get("TYPE").equals("REQUEST")) {
                     // TODO send notifications to users
                     IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
+                    if (client == null) {
+                        System.out.println("User not logged in, should be delivered latter");
+                        String username = parsedData.get("USERNAME");
+                        ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
+                        notifications.add("You've been granted admin rights!");
+                        RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
+                        continue;
+                    }
                     client.setAdmin();
+                    DatagramPacket removeNotification = PacketBuilder.NotificationDelivered(reqId, parsedData.get("USERNAME"));
+                    removeNotification.setAddress(packet.getAddress());
+                    removeNotification.setPort(packet.getPort());
+                    socket.send(removeNotification);
                     client.printMessage("You're an admin now!! yay");
                 } else {
-                    int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
                     synchronized (RMIServer.waitList) {
                         RMIServer.waitList.put(reqId, parsedData);
                         RMIServer.waitList.notifyAll();

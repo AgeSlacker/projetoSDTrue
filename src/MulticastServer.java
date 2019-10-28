@@ -16,9 +16,10 @@ public class MulticastServer extends Thread {
     int PORT = 4312;
     int BUFF_SIZE = 1024;
     HashMap<String, User> userList = new HashMap<>();
-    static WebCrawler crawler;
     HashMap<Integer, ServerInfo> servers = new HashMap<>();
+    HashMap<String, Integer> searchCount = new HashMap<>();
     MulticastSocket socket;
+    static WebCrawler crawler;
     Screamer screamer;
 
 
@@ -27,6 +28,7 @@ public class MulticastServer extends Thread {
     File indexedPagesFile;
     File linksFile;
     File urlListFile;
+    File searchCountFile;
 
     public static void main(String[] args) {
         MulticastServer multicastServer = new MulticastServer();
@@ -36,6 +38,7 @@ public class MulticastServer extends Thread {
         multicastServer.indexedPagesFile = new File("indexedPages" + multicastServer.id + ".bin");
         multicastServer.linksFile = new File("links" + multicastServer.id + ".bin");
         multicastServer.urlListFile = new File("urlList" + multicastServer.id + ".bin");
+        multicastServer.searchCountFile = new File("searchCount" + multicastServer.id + ".bin");
         multicastServer.start();
         WebCrawler webCrawler = new WebCrawler(multicastServer);
         MulticastServer.crawler = webCrawler;
@@ -62,6 +65,7 @@ public class MulticastServer extends Thread {
             System.out.println("Linked pages: " + crawler.linkedPages.toString());
             System.out.println("Indexed Pages: " + crawler.indexedPages.toString());
             System.out.println("URL list: " + crawler.urlList.toString());
+            System.out.printf("Search count: " + searchCount.toString());
 
             // Starting webcrawler
             crawler.start();
@@ -80,12 +84,23 @@ public class MulticastServer extends Thread {
                 DatagramPacket response = null;
                 ArrayList<DatagramPacket> extraResponses = new ArrayList<>();
                 User user;
+                if (parsedData.get("TYPE").equals("REPLY")) {
+                    System.out.println("Received grant admin successfully delivered, removing from notification list");
+                    switch (parsedData.get("OPERATION")) {
+                        case "NOTIFICATION_DELIVERED":
+                            user = userList.get(parsedData.get("USERNAME"));
+                            user.pendingData.clear(); // TODO só ha uma notification, o user grand admin rights, adicionar mais
+                            saveUsers();
+                            break;
+                    }
+                    continue;
+                }
+
                 switch (parsedData.get("OPERATION")) {
                     case "REGISTER":
                         // Check if user exists
                         if (userList.containsKey(parsedData.get("USERNAME"))) {
-                            packet = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_USER_EXISTS);
-                            System.out.println("TODO User already exists");
+                            response = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_USER_EXISTS);
                         } else {
                             // Create new user
                             boolean isAdmin = userList.isEmpty();
@@ -102,6 +117,11 @@ public class MulticastServer extends Thread {
                             // Check if correct password
                             if (user.password.equals(parsedData.get("PASSWORD"))) {
                                 response = PacketBuilder.LoginSuccessPacket(reqId, user);
+                                if (!user.pendingData.isEmpty()) {
+                                    for (DatagramPacket notification : user.pendingData) {
+                                        extraResponses.add(notification);
+                                    }
+                                }
                             } else {
                                 response = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_WRONG_PASS);
                             }
@@ -113,13 +133,19 @@ public class MulticastServer extends Thread {
                         ArrayList<String> searchWords = PacketBuilder.getSearchWords(parsedData);
                         System.out.println("User wants to search reverse index for these words:");
                         System.out.println(searchWords.toString());
-                        String username = parsedData.get("USER");
+                        String username = parsedData.get("USERNAME");
                         // If logged user then save to hist search history
+
+                        String search = String.join(" ", searchWords);
                         if (!username.equals("null")) { // TODO dont like this :[
                             user = userList.get(username); //TODO check USER ANOAN FICK
-                            user.search_history.add(new Search(String.join(" ", searchWords)));
+                            user.search_history.add(new Search(search));
                             saveUsers();
                         }
+
+                        int currentCount = searchCount.getOrDefault(search, 0);
+                        searchCount.put(search, ++currentCount);
+                        saveSearchCount();
 
                         ArrayList<Page> urls = findPagesWithWords(searchWords);
                         //
@@ -144,7 +170,7 @@ public class MulticastServer extends Thread {
                             }
                         }
 
-                        if (minServerInfo.id != this.id) {
+                        if (minServerInfo != null && minServerInfo.id != this.id) {
                             // TODO send to other server
                         } else {
                             synchronized (crawler.urlList) {
@@ -156,11 +182,11 @@ public class MulticastServer extends Thread {
 
                         break;
                     case "HISTORY": // send user history
-                        user = userList.get(parsedData.get("USER"));
+                        user = userList.get(parsedData.get("USERNAME"));
                         response = PacketBuilder.UserHistoryPacket(reqId, user.search_history);
                         break;
                     case "GRANT":
-                        user = userList.get(parsedData.get("USER"));
+                        user = userList.get(parsedData.get("USERNAME"));
                         if (user == null) {
                             response = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_NO_USER);
                         } else {
@@ -168,8 +194,9 @@ public class MulticastServer extends Thread {
                             userList.put(user.username, user);
                             response = PacketBuilder.SuccessPacket(reqId);
                             // TODO notify user
-                            extraResponses.add(PacketBuilder.AdminNotificationPacket(reqId, user.username));
-
+                            DatagramPacket notification = PacketBuilder.AdminNotificationPacket(reqId, user.username);
+                            user.pendingData.add(notification);
+                            extraResponses.add(notification);
                         }
                         break;
                     case "LINKED":
@@ -215,11 +242,13 @@ public class MulticastServer extends Thread {
     private void loadData() throws IOException, ClassNotFoundException {
         System.out.println("Loading user list");
         userList = loadUsers();
+        searchCount = loadSearchCount();
         crawler.index = loadIndex();
         crawler.indexedPages = loadIndexedPages();
         crawler.urlList = loadUrlList();
         crawler.linkedPages = loadLinkedPagesList();
     }
+
 
     private ArrayList<String> loadUrlList() throws IOException, ClassNotFoundException {
         ArrayList<String> urlList = new ArrayList<>();
@@ -240,6 +269,34 @@ public class MulticastServer extends Thread {
             FileOutputStream fs = new FileOutputStream(urlListFile);
             ObjectOutputStream os = new ObjectOutputStream(fs);
             os.writeObject(crawler.urlList);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashMap<String, Integer> loadSearchCount() throws IOException, ClassNotFoundException {
+        HashMap<String, Integer> urlList = new HashMap<>();
+        if (searchCountFile.exists() && searchCountFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(searchCountFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            urlList = (HashMap<String, Integer>) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            searchCountFile.createNewFile();
+        }
+        return urlList;
+    }
+
+    private void saveSearchCount() {
+        try {
+            FileOutputStream fs = new FileOutputStream(searchCountFile);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(searchCount);
             os.close();
             fs.close();
         } catch (FileNotFoundException e) {
@@ -571,6 +628,7 @@ class User implements Serializable {
     String password;
     boolean admin;
     ArrayList<Search> search_history = new ArrayList<>();
+    ArrayList<DatagramPacket> pendingData = new ArrayList<>();
 
     public User(String username, String password, boolean isAdmin) {
         this.username = username;

@@ -24,6 +24,16 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
+    static DatagramPacket NotificationDelivered(int reqId, String name) {
+        String dataString = new StringBuilder()
+                .append(REPLY_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|NOTIFICATION_DELIVERED;")
+                .append("USERNAME|" + name + "\n")
+                .toString();
+        byte[] data = dataString.getBytes();
+        return new DatagramPacket(data, data.length);
+    }
 
     static DatagramPacket RegisterPacket(int reqId, String username, String password) {
         StringBuilder sb = new StringBuilder();
@@ -80,7 +90,7 @@ public class PacketBuilder {
                 .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|SEARCH;")
-                .append("USER|" + user + ";")
+                .append("USERNAME|" + user + ";")
                 .append("PAGE|" + page + ";")
                 .append("WORD_COUNT|" + wordList.length + ";");
         for (int i = 0; i < wordList.length - 1; i++) {
@@ -107,7 +117,7 @@ public class PacketBuilder {
                 .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|GRANT;")
-                .append("USER|" + username + "\n").toString();
+                .append("USERNAME|" + username + "\n").toString();
         byte[] data = dataString.getBytes();
         return new DatagramPacket(data, data.length);
     }
@@ -117,7 +127,7 @@ public class PacketBuilder {
                 .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|HISTORY;")
-                .append("USER|" + name + "\n")
+                .append("USERNAME|" + name + "\n")
                 .toString();
         byte[] data = dataString.getBytes();
         return new DatagramPacket(data, data.length);
