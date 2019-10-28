@@ -106,7 +106,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             String url = receivedData.get("URL_" + i);
             String name = receivedData.get("NAME_" + i);
             String desc = receivedData.get("DESC_" + i);
-            result[i] = url + " " + name + "\n" + desc;
+            result[i] = name + "\n" + url + "\n Description:" + desc + "\n";
         }
         return result;
 
@@ -132,6 +132,14 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         DatagramPacket packet = PacketBuilder.GrantAdmin(packerReqId, user);
         sendPacket(packet, packerReqId);
         return PacketBuilder.RESULT.valueOf(receivedData.get("RESULT"));
+    }
+
+    @Override
+    public ArrayList<String> getHyperLinks(String url) throws RemoteException {
+        int packerReqId = reqId.getAndIncrement();
+        DatagramPacket packet = PacketBuilder.GetLinksToPagePacket(packerReqId, url);
+        sendPacket(packet, packerReqId);
+        return new ArrayList<String>(); // TODO fill this list
     }
 
     void sendPacket(DatagramPacket packet, int packetReqId) {

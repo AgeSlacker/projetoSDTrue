@@ -195,13 +195,45 @@ public class PacketBuilder {
                         .append("NAME_" + i + "|" + pages.get(i).name + ";")
                         .append("DESC_" + i + "|" + pages.get(i).description + ";");
             }
-            sb.append(String.format("URL_%d|%s;", pages.size() - 1, pages))
+            sb.append(String.format("URL_%d|%s;", pages.size() - 1, pages.get(pages.size() - 1)))
                     .append("NAME_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).name + ";")
                     .append("DESC_" + (pages.size() - 1) + "|" + pages.get(pages.size() - 1).description + "\n");
         }
         byte[] data = sb.toString().getBytes();
         return new DatagramPacket(data, data.length);
     }
+
+    public static DatagramPacket GetLinksToPagePacket(int reqId, String url) {
+        String dataString = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|LINKED;")
+                .append("URL|" + url + "\n")
+                .toString();
+        byte[] data = dataString.getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+
+    public static DatagramPacket LinksToPagePacket(int reqId, ArrayList<String> links) {
+        StringBuilder sb = new StringBuilder()
+                .append(REPLY_TYPE)
+                .append("REQ_ID|" + reqId + ";");
+        if (links.size() == 0) {
+            sb.append("LINK_COUNT|" + links.size() + "\n");
+        } else {
+            sb.append("LINK_COUNT|" + links.size() + ";");
+            int last = links.size() - 1;
+            for (int i = 0; i < last; i++) {
+                sb.append("LINK_" + i + "|" + links.get(i) + ";");
+            }
+            sb.append("LINK_" + last + "|" + links.get(last) + "\n");
+        }
+
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
 
     enum TYPE {
         REQUEST, REPLY

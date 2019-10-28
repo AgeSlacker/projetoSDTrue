@@ -197,7 +197,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     printUserHistory();
                     break;
                 case 3: //consult Hyperlink pages
-
+                    loggedUserHyperlink();
                     break;
                 case 4: //give permission
                     givePermissions();
@@ -249,11 +249,19 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
     public void loggedUserHyperlink() {
-        System.out.print("Type in the number of hyperlinks you are looking for:");
-        String termos = sc.nextLine();
-        /*
-        Inserir envio dos termos e print do recebido
-         */
+        System.out.print("Type in the URL: ");
+        String url = sc.nextLine();
+        ArrayList<String> links = null;
+        try {
+            links = server.getHyperLinks(url);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Links to this page");
+        for (String link : links) {
+            System.out.println(link);
+        }
+
     }
 
     public void givePermissions() {
@@ -301,8 +309,10 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
         System.out.println("Search results:");
         for (String result : results)
-            if (result != null)
+            if (result != null) {
+                System.out.println("--------------------------------------");
                 System.out.println(result);
+            }
         System.out.print("Press enter to exit");
         String s = sc.nextLine();
     }

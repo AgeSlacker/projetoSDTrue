@@ -18,4 +18,6 @@ public interface IServer extends Remote {
     ArrayList<String> getUserHistory(IClient client, String username) throws RemoteException;
 
     PacketBuilder.RESULT grantAdmin(IClient client, String user) throws RemoteException;
+
+    ArrayList<String> getHyperLinks(String url) throws RemoteException;
 }

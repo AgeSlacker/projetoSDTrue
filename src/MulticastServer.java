@@ -3,7 +3,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -16,15 +15,23 @@ public class MulticastServer extends Thread {
     int BUFF_SIZE = 1024;
     HashMap<String, User> userList = new HashMap<>();
     static WebCrawler crawler;
-    File usersFile = new File("users.bin");
-    File indexFile = new File("index.bin");
 
+    File usersFile;
+    File indexFile;
+    File indexedPagesFile;
+    File linksFile;
+    File urlListFile;
 
     public static void main(String[] args) {
         MulticastServer multicastServer = new MulticastServer();
+        String number = (args.length > 0) ? args[0] : "";
+        multicastServer.usersFile = new File("users" + number + ".bin");
+        multicastServer.indexFile = new File("index" + number + ".bin");
+        multicastServer.indexedPagesFile = new File("indexedPages" + number + ".bin");
+        multicastServer.linksFile = new File("links" + number + ".bin");
+        multicastServer.urlListFile = new File("urlList" + number + ".bin");
         multicastServer.start();
         WebCrawler webCrawler = new WebCrawler(multicastServer);
-        webCrawler.start();
         MulticastServer.crawler = webCrawler;
     }
 
@@ -36,32 +43,22 @@ public class MulticastServer extends Thread {
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
 
-            // Load user list
+            System.out.println("Begin loading data");
             try {
-                System.out.println("Loading user list");
-                if (usersFile.exists() && usersFile.length() > 0)
-                    userList = (HashMap<String, User>) (new ObjectInputStream(new FileInputStream(usersFile))).readObject();
-                else {
-                    usersFile.createNewFile();
-                }
-                if (indexFile.exists()) {
-                    try {
-                        FileInputStream fs = new FileInputStream(indexFile);
-                        ObjectInputStream os = new ObjectInputStream(fs);
-                        synchronized (crawler.index) {
-                            crawler.index = (HashMap<String, HashSet<Page>>) os.readObject();
-                        }
-                    } catch (EOFException e) {
-
-                    }
-                } else {
-                    indexFile.createNewFile();
-                }
-                System.out.println("Users: " + userList.toString());
-                System.out.println("Index : " + crawler.index.toString());
+                loadData();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
+
+            System.out.println("Initialization ended.");
+            System.out.println("Users: " + userList.toString());
+            System.out.println("Index : " + crawler.index.toString());
+            System.out.println("Linked pages: " + crawler.linkedPages.toString());
+            System.out.println("Indexed Pages: " + crawler.indexedPages.toString());
+            System.out.println("URL list: " + crawler.urlList.toString());
+
+            // Starting webcrawler
+            crawler.start();
 
             while (true) {
                 HashMap<String, String> parsedData = null;
@@ -73,6 +70,7 @@ public class MulticastServer extends Thread {
                 String dataStr = new String(packet.getData());
                 parsedData = PacketBuilder.parsePacketData(dataStr);
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
+
                 DatagramPacket response = null;
                 ArrayList<DatagramPacket> extraResponses = new ArrayList<>();
                 User user;
@@ -86,8 +84,8 @@ public class MulticastServer extends Thread {
                             // Create new user
                             boolean isAdmin = userList.isEmpty();
                             user = new User(parsedData.get("USERNAME"), parsedData.get("PASSWORD"), isAdmin);
-                            userList.put(parsedData.get("USERNAME"), user);
-                            (new ObjectOutputStream(new FileOutputStream(usersFile))).writeObject(userList);
+                            userList.put(user.username, user);
+                            saveUsers();
                             response = PacketBuilder.SuccessPacket(reqId);
                             System.out.println("Registered users: " + userList.toString());
                         }
@@ -126,9 +124,9 @@ public class MulticastServer extends Thread {
                         response = PacketBuilder.SearchResults(reqId, urls);
                         break;
                     case "INDEX":
-                        synchronized (crawler.url_list) {
-                            crawler.url_list.add(parsedData.get("URL"));
-                            crawler.url_list.notify();
+                        synchronized (crawler.urlList) {
+                            crawler.urlList.add(parsedData.get("URL"));
+                            crawler.urlList.notify();
                         }
                         response = PacketBuilder.SuccessPacket(reqId);
                         break;
@@ -143,13 +141,21 @@ public class MulticastServer extends Thread {
                         } else {
                             user.admin = true;
                             userList.put(user.username, user);
-                            saveUsers();
                             response = PacketBuilder.SuccessPacket(reqId);
                             // TODO notify user
-
                             extraResponses.add(PacketBuilder.AdminNotificationPacket(reqId, user.username));
 
                         }
+                        break;
+                    case "LINKED":
+                        ArrayList<String> links;
+                        synchronized (crawler.linkedPages) {
+                            String url = parsedData.get("URL");
+                            if (!url.startsWith("http://") && !url.startsWith("https://"))
+                                url = "http://".concat(url);
+                            links = new ArrayList<>(crawler.linkedPages.get(url));
+                        }
+                        response = PacketBuilder.LinksToPagePacket(reqId, links);
                         break;
                     default:
                         break;
@@ -171,6 +177,157 @@ public class MulticastServer extends Thread {
         }
     }
 
+    private void loadData() throws IOException, ClassNotFoundException {
+        System.out.println("Loading user list");
+        userList = loadUsers();
+        crawler.index = loadIndex();
+        crawler.indexedPages = loadIndexedPages();
+        crawler.urlList = loadUrlList();
+        crawler.linkedPages = loadLinkedPagesList();
+    }
+
+    private ArrayList<String> loadUrlList() throws IOException, ClassNotFoundException {
+        ArrayList<String> urlList = new ArrayList<>();
+        if (urlListFile.exists() && urlListFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(urlListFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            urlList = (ArrayList<String>) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            urlListFile.createNewFile();
+        }
+        return urlList;
+    }
+
+    void saveUrlList() {
+        try {
+            FileOutputStream fs = new FileOutputStream(urlListFile);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(crawler.urlList);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashMap<String, HashSet<String>> loadLinkedPagesList() throws IOException, ClassNotFoundException {
+        HashMap<String, HashSet<String>> linkedPages = new HashMap<>();
+        if (linksFile.exists() && linksFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(linksFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            linkedPages = (HashMap<String, HashSet<String>>) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            linksFile.createNewFile();
+        }
+        return linkedPages;
+    }
+
+    void saveLinkedPages() {
+        try {
+            FileOutputStream fs = new FileOutputStream(linksFile);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(crawler.linkedPages);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashSet<String> loadIndexedPages() throws IOException, ClassNotFoundException {
+        HashSet<String> indexedPages = new HashSet<>();
+        if (indexedPagesFile.exists() && indexedPagesFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(indexedPagesFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            indexedPages = (HashSet<String>) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            indexedPagesFile.createNewFile();
+        }
+        return indexedPages;
+    }
+
+    void saveIndexedPages() {
+        try {
+            FileOutputStream fs = new FileOutputStream(indexedPagesFile);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(crawler.indexedPages);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashMap<String, HashSet<Page>> loadIndex() throws IOException, ClassNotFoundException {
+        HashMap<String, HashSet<Page>> index = new HashMap<>();
+        if (indexFile.exists() && indexFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(indexFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            index = (HashMap<String, HashSet<Page>>) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            indexFile.createNewFile();
+        }
+        return index;
+    }
+
+    void saveIndex() {
+        try {
+            FileOutputStream fs = new FileOutputStream(indexFile, true);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(crawler.index);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private HashMap<String, User> loadUsers() throws IOException, ClassNotFoundException {
+        HashMap users = new HashMap<>();
+        if (usersFile.exists() && usersFile.length() > 0) {
+            FileInputStream fs = new FileInputStream(usersFile);
+            ObjectInputStream os = new ObjectInputStream(fs);
+            users = (HashMap) os.readObject();
+            os.close();
+            fs.close();
+        } else {
+            usersFile.createNewFile();
+        }
+        return users;
+    }
+
+    private void saveUsers() {
+        try {
+            FileOutputStream fs = new FileOutputStream(usersFile);
+            ObjectOutputStream os = new ObjectOutputStream(fs);
+            os.writeObject(userList);
+            os.close();
+            fs.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
     ArrayList<Page> findPagesWithWords(ArrayList<String> words) {
         HashSet<Page> pages = new HashSet<>();
         ArrayList<Page> pageList;
@@ -185,35 +342,50 @@ public class MulticastServer extends Thread {
             if (pages == null) {
                 return new ArrayList<>();
             }
-
             pageList = new ArrayList<>(pages);
 
-            Collections.sort(pageList, new Comparator<Page>() {
-                @Override
-                public int compare(Page page, Page page2) {
-                    return page.links.size() - page2.links.size();
-                }
-            });
-            System.out.println(pages.toString());
         }
+        // TODO este sort esrtá errado, tem que ser pelo numero de links para a página e não
+        // pelo numero de links que a pagina tem
+        synchronized (crawler.linkedPages) {
+            // crawler.linked.get(page.url).size()
+            Collections.sort(pageList, new PageComparator());
+            try {
+                pageList.forEach(page -> System.out.println(page.url + " " + crawler.linkedPages.get(page.url).size()));
+            } catch (NullPointerException e) {
+                System.out.println("GOT YOU");
+            }
+        }
+        System.out.println(pages.toString());
         return pageList;
     }
 
-    void saveUsers() {
-        try {
-            (new ObjectOutputStream(new FileOutputStream(usersFile))).writeObject(userList);
-        } catch (IOException e) {
-            e.printStackTrace();
+    class PageComparator implements Comparator<Page> {
+        @Override
+        public int compare(Page page, Page page2) {
+            HashSet<String> linksToPage1 = crawler.linkedPages.get(page.url);
+            HashSet<String> linksToPage2 = crawler.linkedPages.get(page2.url);
+
+            if (linksToPage1 != null && linksToPage2 != null)
+                return linksToPage2.size() - linksToPage1.size();
+            else if (linksToPage1 != null)
+                return 1;
+            else if (linksToPage2 != null)
+                return -1;
+            return 0;
         }
     }
-
 }
 
 class WebCrawler extends Thread {
 
     MulticastServer ms;
     HashMap<String, HashSet<Page>> index = new HashMap<>();
-    ArrayList<String> url_list = new ArrayList<>();
+    // url -> list of urls that link to this page
+    HashMap<String, HashSet<String>> linkedPages = new HashMap<>();
+
+    HashSet<String> indexedPages = new HashSet<>();
+    ArrayList<String> urlList = new ArrayList<>();
 
     public WebCrawler(MulticastServer ms) {
         this.ms = ms;
@@ -221,73 +393,98 @@ class WebCrawler extends Thread {
 
     @Override
     public void run() {
+        System.out.println("Crawler created");
         while (true) {
             String url;
             System.out.println("Web crawler thread started. Waiting for links");
-            synchronized (url_list) {
-                while (url_list.isEmpty()) {
+            synchronized (urlList) {
+                while (urlList.isEmpty()) {
                     try {
-                        url_list.wait();
+                        urlList.wait();
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
-                url = url_list.remove(0);
-                System.out.println("Web Crawler got link :" + url);
+                url = urlList.remove(0);
+                try {
+                    sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
             Document doc = null;
             try {
                 if (!url.startsWith("http://") && !url.startsWith("https://"))
-                    url = "http://".concat(url);
+                    url = "https://".concat(url);
                 doc = Jsoup.connect(url).get();
+                if (doc == null) continue; // tive que adicionar
             } catch (IOException e) {
 
+            } catch (IllegalArgumentException e) {
+                continue; // As vezes acontece que o site nao dá
             }
-
-            String title = doc.title().replaceAll("|", "").replaceAll(";", "");
-            Elements metaDescription = doc
-                    .select("meta[name=description]");
-            String description = "";
+            System.out.println("Web Crawler got link :" + url);
+            synchronized (indexedPages) {
+                if (indexedPages.contains(url)) {
+                    System.out.println("This link is already indexed...");
+                    continue; // TODO why is this necessary
+                }
+            }
+            String title = doc.title().replaceAll("\\|", "").replaceAll(";", "");
+            Elements metaDescription = doc.select("meta[name=description]");
+            String description = " ";
             if (metaDescription.size() > 0) {
                 description = metaDescription
                         .get(0)
                         .attr("content")
-                        .replaceAll("|", "")
+                        .replaceAll("\\|", "")
                         .replaceAll(";", "");
             }
+
             Page currentPage = new Page(url, title, description);
 
+            // Get all page links
             Elements links = doc.select("a[href]");
-            synchronized (url_list) { // TODO distribuir a carga com outros servers
-                // TODO mostrar o title + desc to site
+            synchronized (urlList) { // TODO distribuir a carga com outros servers
                 for (Element link : links) {
                     //System.out.println(link.text() + "\n" + link.attr("abs:href") + "\n");
                     String linkSt = link.attr("abs:href");
-                    url_list.add(linkSt);
-                    currentPage.links.add(linkSt);
+                    if (linkSt.contains("@"))
+                        continue;
+                    HashSet<String> linkedFrom = linkedPages.getOrDefault(linkSt, new HashSet<>());
+                    linkedFrom.add(url);
+                    synchronized (linkedPages) {
+                        linkedPages.put(linkSt, linkedFrom);
+                    }
+                    // Temos que verificar se a propria pagina n tem varios links para a mesma cena
+                    if (!indexedPages.contains(linkSt) && !urlList.contains(linkSt) && !linkSt.equals(url)) {
+                        urlList.add(linkSt);
+                        System.out.println("Added link to urllist: " + linkSt);
+                    }
                 }
             }
 
+            // Get and index words
             StringTokenizer tokens = new StringTokenizer(doc.text());
             while (tokens.hasMoreElements()) {
                 String word = tokens.nextToken().toLowerCase();
-                HashSet<Page> updatedHaset = index.getOrDefault(word, new HashSet<Page>());
+                HashSet<Page> updatedHaset = index.getOrDefault(word, new HashSet<>());
                 updatedHaset.add(currentPage);
-                //System.out.println(doc.title());
-                //System.out.println(url);
-                // System.out.println(doc.body());
                 index.put(word, updatedHaset);
             }
 
-            try {
-                System.out.println("Writing to file");
-                FileOutputStream fs = new FileOutputStream(ms.indexFile);
-                ObjectOutputStream os = new ObjectOutputStream(fs);
-                os.writeObject(index);
-                fs.close();
-                os.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            synchronized (index) {
+                ms.saveIndex(); // save to file
+            }
+            synchronized (indexedPages) {
+                indexedPages.add(url);
+                ms.saveIndexedPages();
+            }
+            synchronized (links) {
+                ms.saveLinkedPages();
+            }
+            synchronized (urlList) {
+                ms.saveUrlList();
             }
 
             System.out.println("Words so far link: " + index.keySet().toString());
@@ -329,6 +526,7 @@ class Page implements Serializable {
 
     @Override
     public boolean equals(Object obj) {
+
         return this.url.equals(((Page) obj).url);
     }
 
