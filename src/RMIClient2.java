@@ -41,12 +41,10 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                 case 1: //login
                     do {
                         System.out.println("Please insert your credentials!(0 to cancel)");
-                        System.out.print("Login:");
-                        String login = sc.nextLine();
+                        String login = untilNotEmpty("Login: ", "Login cannot be empty!");
                         if (login.equals("0"))
                             break;
-                        System.out.print("Password: ");
-                        String password = sc.nextLine();
+                        String password = untilNotEmpty("Password: ", "Password cannot be empty!");
                         System.out.println("Consulting server...");
                         PacketBuilder.RESULT answer = null;
                         try {
@@ -73,14 +71,14 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                 case 2: //register
                     label:
                     do {
+                        System.out.println();
                         System.out.println("--------Register Page------------");
                         System.out.println("Please insert your new credentials!(0 to cancel)");
-                        System.out.print("Login:");
-                        String login = sc.nextLine();
+                        System.out.print("Login: ");
+                        String login = untilNotEmpty("Login:", "Login cannot be empty!");
                         if (login.equals("0"))
                             break;
-                        System.out.print("Password: ");
-                        String password = sc.nextLine();
+                        String password = untilNotEmpty("Password: ", "Password cannot be empty!");
                         System.out.println("Consulting server...");
                         PacketBuilder.RESULT success = null;
                         try {
@@ -124,7 +122,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         this.isAdmin = true;
     }
 
-    public int mainMenu() {
+    int mainMenu() {
         if (this.username != null) {
             try {
                 server.unregister(this.username);
@@ -134,6 +132,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
         int choice = 0;
         do {
+            System.out.println();
             System.out.println("----------------------------------");
             System.out.println("1. Login");
             System.out.println("2. Register");
@@ -157,10 +156,11 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         return choice;
     }
 
-    public int loggedUserMenu() {
+    int loggedUserMenu() {
         int choice = 0;
         do {
             while (true) {
+                System.out.println();
                 System.out.println("----------------------------------");
                 System.out.println("1. Search");
                 System.out.println("2. History");
@@ -191,7 +191,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         return choice;
     }
 
-    public void loggedUser() {
+    void loggedUser() {
         int choice = 1;
         while (choice != 0) {
             choice = loggedUserMenu();
@@ -212,23 +212,12 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
                     break;
                 case 6: //index Url
-                    // index URL rmi call
-                    System.out.print("URL: ");
-                    String url = sc.nextLine();
-                    try {
-                        PacketBuilder.RESULT result = server.indexRequest(url);
-                        if (result.equals(PacketBuilder.RESULT.SUCCESS)) {
-                            System.out.println("URL indexed");
-                        }
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    }
+                    indexURL();
                     break;
                 case 7: //system info
 
                     break;
                 case 0: //exit
-
                     break;
                 default:
                     break;
@@ -246,17 +235,23 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
-    public void loggedUserSearch() {
-        System.out.print("Type in the terms you want to search:");
-        String termos = sc.nextLine();
-        /*
-        Inserir envio dos termos e print do recebido
-         */
+    String untilNotEmpty(String ask, String repifnull) {
+        String st = "";
+        do {
+            System.out.print(ask);
+            st = sc.nextLine();
+            if (st.isEmpty())
+                System.out.println(repifnull);
+        } while (st.isEmpty());
+
+        return st;
     }
 
-    public void loggedUserHyperlink() {
-        System.out.print("Type in the URL: ");
-        String url = sc.nextLine();
+
+    void loggedUserHyperlink() {
+
+        String url = untilNotEmpty("Type in the URL: ", "URL can't be empty");
+
         ArrayList<String> links = null;
         try {
             links = server.getHyperLinks(url);
@@ -270,9 +265,8 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
     }
 
-    public void givePermissions() {
-        System.out.print("Type a username of a user you want to turn into an admin:");
-        String username = sc.nextLine();
+    void givePermissions() {
+        String username = untilNotEmpty("Type a username of a user you want to turn into an admin:", "Usarname cannot be empty");
         try {
             PacketBuilder.RESULT result = server.grantAdmin(this, username);
             switch (result) {
@@ -289,23 +283,26 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
     }
 
-    public void indexURL() {
-        System.out.println("Type the URL you want to Index:");
-        String url = sc.nextLine();
-        /*
-        Inserir envio dos termos e print do recebido
-         */
+    void indexURL() {
+        String url = untilNotEmpty("URL: ", "Not able to index empty URL");
+        try {
+            PacketBuilder.RESULT result = server.indexRequest(url);
+            if (result.equals(PacketBuilder.RESULT.SUCCESS)) {
+                System.out.println("URL indexed");
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void systemInfo() {
+    void systemInfo() {
         /*
         Inserir envio dos termos e print do recebido
          */
     }
 
     void searchMenu() {
-        System.out.print("Type in the terms you want to search:");
-        String termos = sc.nextLine();
+        String termos = untilNotEmpty("Type in the terms you want to search:", "Not possible to search for empty word!");
         String[] words = termos.split(" ");
         String[] results = new String[0];
         try {
@@ -321,5 +318,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             }
         System.out.print("Press enter to exit");
         String s = sc.nextLine();
+        //TODO fazer com que possa se navegar atravez das paginas
     }
 }
