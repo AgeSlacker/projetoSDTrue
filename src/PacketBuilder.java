@@ -287,28 +287,21 @@ public class PacketBuilder {
                 .append("OPERATION|ADMIN_UPDATE;");
         // top searches
         int s = adminData.topSearches.size();
-        if (s == 0) {
-            sb.append("TOP_SEARCH_COUNT|" + s + "\n");
-        } else {
+        sb.append("TOP_SEARCH_COUNT|" + s + ";");
+        if (s != 0) {
             sb.append("TOP_SEARCH_COUNT|" + s + ";");
-            int last = s - 1;
-            for (int i = 0; i < last; i++) {
+            int last = s;
+            for (int i = 0; i < last; i++)
                 sb.append("SEARCH_" + i + "|" + adminData.topSearches.get(i) + ";");
-            }
-            sb.append("SEARCH_" + last + "|" + adminData.topSearches.get(last) + "\n");
         }
-
         // top searches
         s = adminData.topPages.size();
-        if (s == 0) {
-            sb.append("TOP_PAGE_COUNT|" + s + "\n");
-        } else {
+        sb.append("TOP_PAGE_COUNT|" + s + ";");
+        if (s != 0) {
             sb.append("TOP_PAGE_COUNT|" + s + ";");
-            int last = s - 1;
-            for (int i = 0; i < last; i++) {
+            int last = s;
+            for (int i = 0; i < last; i++)
                 sb.append("PAGE_" + i + "|" + adminData.topPages.get(i) + ";");
-            }
-            sb.append("PAGE_" + last + "|" + adminData.topPages.get(last) + "\n");
         }
 
         // top server

@@ -307,7 +307,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         } catch (RemoteException e) {
             e.printStackTrace();
         }
-        System.out.println("Type ENTER to go back.");
         sc.nextLine();
         try {
             server.adminOutPage(this.username);

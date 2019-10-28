@@ -4,7 +4,6 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.lang.reflect.Array;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -56,7 +55,7 @@ public class MulticastServer extends Thread {
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
             screamer = new Screamer(this);
-            //screamer.start();
+            screamer.start();
             notificator = new AdminNotificator(this);
             notificator.start();
             System.out.println("Begin loading data");
@@ -152,6 +151,26 @@ public class MulticastServer extends Thread {
 
                         int currentCount = searchCount.getOrDefault(search, 0);
                         searchCount.put(search, ++currentCount);
+
+                        //Update admin search
+                        ArrayList<Map.Entry<String, Integer>> sortedTopSearches = new ArrayList<>(searchCount.entrySet());
+                        Collections.sort(sortedTopSearches, new Comparator<Map.Entry<String, Integer>>() {
+                            @Override
+                            public int compare(Map.Entry<String, Integer> first, Map.Entry<String, Integer> second) {
+                                return second.getValue() - first.getValue();
+                            }
+                        });
+                        ArrayList<String> topSearches = new ArrayList<>();
+                        for (Map.Entry<String, Integer> entry : sortedTopSearches) {
+                            topSearches.add("( " + entry.getValue() + " )" + entry.getKey());
+                        }
+                        int max = (topSearches.size() >= 10) ? 10 : topSearches.size();
+                        topSearches.subList(0, max);
+                        System.out.println(topSearches);
+                        this.adminData.topSearches = topSearches;
+                        synchronized (this.adminData.changed) {
+                            this.adminData.changed.notify();
+                        }
                         saveSearchCount();
 
                         ArrayList<Page> urls = findPagesWithWords(searchWords);
@@ -220,11 +239,24 @@ public class MulticastServer extends Thread {
                         break;
                     case "DISCOVERY":
                         int id = Integer.parseInt(parsedData.get("REQ_ID"));
-                        InetAddress address = InetAddress.getByName(parsedData.get("ADDRESS"));
-                        int port = Integer.parseInt(parsedData.get("PORT"));
-                        int load = Integer.parseInt(parsedData.get("LOAD"));
-                        this.servers.put(id, new ServerInfo(this.id, address, port, load));
-                        System.out.println(this.servers.toString());
+                        if (!this.servers.containsKey(id)) {
+                            InetAddress address = InetAddress.getByName(parsedData.get("ADDRESS"));
+                            int port = Integer.parseInt(parsedData.get("PORT"));
+                            int load = Integer.parseInt(parsedData.get("LOAD"));
+                            this.servers.put(id, new ServerInfo(id, address, port, load));
+
+                            ArrayList<String> connecterServers = new ArrayList<>();
+                            for (Map.Entry<Integer, ServerInfo> entry : servers.entrySet()) {
+                                int serverId = entry.getValue().id;
+                                int serverPORT = entry.getValue().port;
+                                String addr = entry.getValue().address.toString();
+                                connecterServers.add("ID: " + serverId + " " + addr + ":" + serverPORT);
+                            }
+                            adminData.servers = connecterServers;
+                            synchronized (adminData.changed) {
+                                adminData.changed.notify();
+                            }
+                        }
                         continue;
                     case "ADMIN_IN":
                         user = userList.get(parsedData.get("USERNAME"));
@@ -234,10 +266,10 @@ public class MulticastServer extends Thread {
                         }
                         System.out.println("ADMIN IN");
                         response = PacketBuilder.SuccessPacket(reqId);
-                        // TEST
-                        synchronized (this.adminData.changed) {
-                            this.adminData.changed.notify();
+                        synchronized (adminData.changed) {
+                            adminData.changed.notify();
                         }
+                        // TEST
                         break;
                     case "ADMIN_OUT":
                         user = userList.get(parsedData.get("USERNAME"));
@@ -754,7 +786,7 @@ class AdminNotificator extends Thread {
                         InetAddress addr = null;
                         int port = 0;
                         try {
-                            addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0]);
+                            addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0].replaceAll("/", ""));
                             port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
                         } catch (UnknownHostException e) {
                             e.printStackTrace();

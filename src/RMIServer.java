@@ -121,7 +121,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         sendPacket(packet, packetReqId);
         client.printMessage("Seach complete");
         String[] result = new String[10];
-        for (int i = 0; i < Integer.parseInt(receivedData.get("PAGE_COUNT")) - 1; i++) {
+        for (int i = 0; i < Integer.parseInt(receivedData.get("PAGE_COUNT")); i++) {
             String url = receivedData.get("URL_" + i);
             String name = receivedData.get("NAME_" + i);
             String desc = receivedData.get("DESC_" + i);
@@ -255,21 +255,24 @@ class Receiver extends Thread {
                             break;
                         case "ADMIN_UPDATE":
                             String user = parsedData.get("USERNAME");
-                            String mesage = "ALGUMA CENA LA";
+                            String message = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; // :'(
                             int count = Integer.parseInt(parsedData.get("SERVER_COUNT"));
+                            message = message + "Servers:\n";
                             for (int i = 0; i < count; i++) {
-                                mesage = mesage + parsedData.get("SERVER_" + i) + "\n";
+                                message = message + parsedData.get("SERVER_" + i) + "\n";
                             }
+                            message = message + "Top searches: ";
                             count = Integer.parseInt(parsedData.get("TOP_SEARCH_COUNT"));
                             for (int i = 0; i < count; i++) {
-                                mesage = mesage + parsedData.get("SEARCH_" + i) + "\n";
+                                message = message + parsedData.get("SEARCH_" + i) + "\n";
                             }
+
                             count = Integer.parseInt(parsedData.get("TOP_PAGE_COUNT"));
                             for (int i = 0; i < count; i++) {
-                                mesage = mesage + parsedData.get("PAGE_" + i) + "\n";
+                                message = message + parsedData.get("PAGE_" + i) + "\n";
                             }
                             client = RMIServer.loggedUsers.get(user);
-                            client.printMessage(mesage);
+                            client.printMessage(message + "\n\n Type ENTER to exit");
                             break;
                     }
                 } else {
