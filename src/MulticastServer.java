@@ -10,6 +10,11 @@ import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.util.*;
 
+/**
+ * Main thread used to boostrap the MulticastServer.
+ * Receives multicast packets and treats them accordingly.
+ * Creates all the other necessary threads WebCrawler, Screamer and AdminNotificator.
+ */
 public class MulticastServer extends Thread {
     String MULTICAST_ADDRESS = "224.3.2.0";
     int id;
@@ -34,6 +39,11 @@ public class MulticastServer extends Thread {
     File urlListFile;
     File searchCountFile;
 
+    /**
+     * Used to set all the main file descriptors and creates the MulticastServer thread
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         MulticastServer multicastServer = new MulticastServer();
         multicastServer.id = (args.length > 0) ? Integer.parseInt(args[0]) : 0;
@@ -90,6 +100,11 @@ public class MulticastServer extends Thread {
                 DatagramPacket response = null;
                 ArrayList<DatagramPacket> extraResponses = new ArrayList<>();
                 User user;
+
+                // Special type of packet directed at the multicast server
+                // Usually the multicast server receives REQUESTS
+                // These packets are, as the name suggests, a response to the multicast server, namely to the
+                // AdminNotification packet, that sometimes needs to be stored and forwarded when the user logs in
                 if (parsedData.get("TYPE").equals("REPLY")) {
                     System.out.println("Received grant admin successfully delivered, removing from notification list");
                     switch (parsedData.get("OPERATION")) {
@@ -101,7 +116,7 @@ public class MulticastServer extends Thread {
                     }
                     continue;
                 }
-
+                // Core of the Multicast Server. After receiving the packets redirects or treats it accordingly
                 switch (parsedData.get("OPERATION")) {
                     case "REGISTER":
                         // Check if user exists
@@ -682,6 +697,52 @@ class Screamer extends Thread {
     }
 }
 
+class AdminNotificator extends Thread {
+    MulticastServer ms;
+
+    public AdminNotificator(MulticastServer ms) {
+        this.ms = ms;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+
+            synchronized (ms.adminData.changed) {
+                try {
+                    System.out.println("Notificator waiting for changes");
+                    ms.adminData.changed.wait();
+                    System.out.println("Change received, sending packet to all admins");
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                synchronized (ms.currentAdmins) {
+                    for (User user : ms.currentAdmins) {
+                        InetAddress addr = null;
+                        int port = 0;
+                        try {
+                            addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0].replaceAll("/", ""));
+                            port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
+                        } catch (UnknownHostException e) {
+                            e.printStackTrace();
+                        }
+
+                        DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, user.username);
+                        packet.setAddress(addr);
+                        packet.setPort(port);
+                        try {
+                            ms.socket.send(packet);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+}
+
 class User implements Serializable {
     String username;
     String password;
@@ -762,48 +823,3 @@ class ServerInfo {
     }
 }
 
-class AdminNotificator extends Thread {
-    MulticastServer ms;
-
-    public AdminNotificator(MulticastServer ms) {
-        this.ms = ms;
-    }
-
-    @Override
-    public void run() {
-        while (true) {
-
-            synchronized (ms.adminData.changed) {
-                try {
-                    System.out.println("Notificator waiting for changes");
-                    ms.adminData.changed.wait();
-                    System.out.println("Change received, sending packet to all admins");
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                synchronized (ms.currentAdmins) {
-                    for (User user : ms.currentAdmins) {
-                        InetAddress addr = null;
-                        int port = 0;
-                        try {
-                            addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0].replaceAll("/", ""));
-                            port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
-                        } catch (UnknownHostException e) {
-                            e.printStackTrace();
-                        }
-
-                        DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, user.username);
-                        packet.setAddress(addr);
-                        packet.setPort(port);
-                        try {
-                            ms.socket.send(packet);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-
-            }
-        }
-    }
-}

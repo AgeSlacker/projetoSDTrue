@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="MulticastServer">
+    <output-path>$PROJECT_DIR$/out/artifacts/MulticastServer</output-path>
+    <root id="archive" name="MulticastServer.jar">
+      <element id="file-copy" path="$PROJECT_DIR$/src/MulticastServer.java" />
+      <element id="library" level="project" name="jsoup-1.12.11" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/PacketBuilder.java" />
+    </root>
+  </artifact>
+</component>
