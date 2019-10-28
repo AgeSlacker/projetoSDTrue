@@ -84,7 +84,9 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             client.setAdmin();
         }
         synchronized (loggedUsers) {
-            loggedUsers.put(name, client);
+            if (result == PacketBuilder.RESULT.SUCCESS) {
+                loggedUsers.put(name, client);
+            }
             System.out.println("Current logged users: " + loggedUsers.keySet().toString());
         }
 
@@ -221,7 +223,7 @@ class Receiver extends Thread {
                     if (client == null) {
                         System.out.println("User not logged in, should be delivered latter");
                         String username = parsedData.get("USERNAME");
-                        ArrayList<String> notifications = RMIServer.notifications.get(username);
+                        ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
                         notifications.add("You've been granted admin rights!");
                         RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
                         continue;
