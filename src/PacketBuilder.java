@@ -1,5 +1,7 @@
 import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.StringTokenizer;
@@ -209,6 +211,19 @@ public class PacketBuilder {
                 .append("REQ_ID|" + reqId + ";")
                 .append("OPERATION|LINKED;")
                 .append("URL|" + url + "\n")
+                .toString();
+        byte[] data = dataString.getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+    public static DatagramPacket DiscoveryPacket(int reqId, String address, int port, int load) {
+        String dataString = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|DISCOVERY;")
+                .append("ADDRESS|" + address.replaceAll("/", "") + ";")
+                .append("PORT|" + port + ";")
+                .append("LOAD|" + load + "\n")
                 .toString();
         byte[] data = dataString.getBytes();
         return new DatagramPacket(data, data.length);

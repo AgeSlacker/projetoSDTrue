@@ -7,14 +7,20 @@ import java.io.*;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.UnknownHostException;
 import java.util.*;
 
 public class MulticastServer extends Thread {
-    private String MULTICAST_ADDRESS = "224.3.2.0";
-    private int PORT = 4312;
+    String MULTICAST_ADDRESS = "224.3.2.0";
+    int id;
+    int PORT = 4312;
     int BUFF_SIZE = 1024;
     HashMap<String, User> userList = new HashMap<>();
     static WebCrawler crawler;
+    HashMap<Integer, ServerInfo> servers = new HashMap<>();
+    MulticastSocket socket;
+    Screamer screamer;
+
 
     File usersFile;
     File indexFile;
@@ -24,25 +30,25 @@ public class MulticastServer extends Thread {
 
     public static void main(String[] args) {
         MulticastServer multicastServer = new MulticastServer();
-        String number = (args.length > 0) ? args[0] : "";
-        multicastServer.usersFile = new File("users" + number + ".bin");
-        multicastServer.indexFile = new File("index" + number + ".bin");
-        multicastServer.indexedPagesFile = new File("indexedPages" + number + ".bin");
-        multicastServer.linksFile = new File("links" + number + ".bin");
-        multicastServer.urlListFile = new File("urlList" + number + ".bin");
+        multicastServer.id = (args.length > 0) ? Integer.parseInt(args[0]) : 0;
+        multicastServer.usersFile = new File("users" + multicastServer.id + ".bin");
+        multicastServer.indexFile = new File("index" + multicastServer.id + ".bin");
+        multicastServer.indexedPagesFile = new File("indexedPages" + multicastServer.id + ".bin");
+        multicastServer.linksFile = new File("links" + multicastServer.id + ".bin");
+        multicastServer.urlListFile = new File("urlList" + multicastServer.id + ".bin");
         multicastServer.start();
         WebCrawler webCrawler = new WebCrawler(multicastServer);
         MulticastServer.crawler = webCrawler;
     }
 
     public void run() {
-        MulticastSocket socket = null;
+        socket = null;
         try {
             socket = new MulticastSocket(PORT);  // create socket and bind it
-
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
-
+            screamer = new Screamer(this);
+            screamer.start();
             System.out.println("Begin loading data");
             try {
                 loadData();
@@ -124,11 +130,30 @@ public class MulticastServer extends Thread {
                         response = PacketBuilder.SearchResults(reqId, urls);
                         break;
                     case "INDEX":
+                        int currentLoad = 0;
                         synchronized (crawler.urlList) {
-                            crawler.urlList.add(parsedData.get("URL"));
-                            crawler.urlList.notify();
+                            currentLoad = crawler.urlList.size();
+                        }
+                        // Check if it has the lowest load of all the Multicast Servers it knows
+                        int minLoad = currentLoad;
+                        ServerInfo minServerInfo = servers.get(this.id);
+                        for (ServerInfo serverInfo : servers.values()) {
+                            if (serverInfo.load < minLoad) {
+                                minLoad = serverInfo.load;
+                                minServerInfo = serverInfo;
+                            }
+                        }
+
+                        if (minServerInfo.id != this.id) {
+                            // TODO send to other server
+                        } else {
+                            synchronized (crawler.urlList) {
+                                crawler.urlList.add(parsedData.get("URL"));
+                                crawler.urlList.notify();
+                            }
                         }
                         response = PacketBuilder.SuccessPacket(reqId);
+
                         break;
                     case "HISTORY": // send user history
                         user = userList.get(parsedData.get("USER"));
@@ -148,15 +173,25 @@ public class MulticastServer extends Thread {
                         }
                         break;
                     case "LINKED":
-                        ArrayList<String> links;
+                        ArrayList<String> links = new ArrayList<>();
                         synchronized (crawler.linkedPages) {
                             String url = parsedData.get("URL");
                             if (!url.startsWith("http://") && !url.startsWith("https://"))
-                                url = "http://".concat(url);
-                            links = new ArrayList<>(crawler.linkedPages.get(url));
+                                url = "https://".concat(url);
+                            HashSet<String> backPages = crawler.linkedPages.get(url);
+                            if (backPages != null)
+                                links = new ArrayList<>(backPages);
                         }
                         response = PacketBuilder.LinksToPagePacket(reqId, links);
                         break;
+                    case "DISCOVERY":
+                        int id = Integer.parseInt(parsedData.get("REQ_ID"));
+                        InetAddress address = InetAddress.getByName(parsedData.get("ADDRESS"));
+                        int port = Integer.parseInt(parsedData.get("PORT"));
+                        int load = Integer.parseInt(parsedData.get("LOAD"));
+                        this.servers.put(id, new ServerInfo(this.id, address, port, load));
+                        System.out.println(this.servers.toString());
+                        continue;
                     default:
                         break;
                 }
@@ -417,11 +452,14 @@ class WebCrawler extends Thread {
                 if (!url.startsWith("http://") && !url.startsWith("https://"))
                     url = "https://".concat(url);
                 doc = Jsoup.connect(url).get();
-                if (doc == null) continue; // tive que adicionar
             } catch (IOException e) {
 
             } catch (IllegalArgumentException e) {
                 continue; // As vezes acontece que o site nao dá
+            }
+            if (doc == null) {
+                System.out.println("Ignored link: " + url + "\n HTML document was null");
+                continue;
             }
             System.out.println("Web Crawler got link :" + url);
             synchronized (indexedPages) {
@@ -493,6 +531,41 @@ class WebCrawler extends Thread {
     }
 }
 
+class Screamer extends Thread {
+
+    MulticastServer server;
+
+    public Screamer(MulticastServer server) {
+        this.server = server;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            System.out.println("Screamer started");
+            int load;
+            synchronized (server.crawler.urlList) {
+                load = server.crawler.urlList.size();
+            }
+            // TODO reqId
+
+            try {
+                InetAddress group = InetAddress.getByName(server.MULTICAST_ADDRESS);
+                DatagramPacket myStatus = PacketBuilder.DiscoveryPacket(server.id, InetAddress.getLocalHost().getHostAddress(), server.PORT, load);
+                myStatus.setAddress(group);
+                myStatus.setPort(server.PORT);
+                server.socket.send(myStatus);
+                System.out.println("Packet sent, sleeping");
+                sleep(10000);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+
 class User implements Serializable {
     String username;
     String password;
@@ -543,5 +616,24 @@ class Search implements Serializable {
     public Search(String query) {
         this.time = new Date(System.currentTimeMillis());
         this.query = query;
+    }
+}
+
+class ServerInfo {
+    InetAddress address;
+    int port;
+    int load;
+    int id;
+
+    public ServerInfo(int id, InetAddress address, int port, int load) {
+        this.id = id;
+        this.address = address;
+        this.port = port;
+        this.load = load;
+    }
+
+    @Override
+    public String toString() {
+        return id + " " + address + " " + port + " load: " + load;
     }
 }

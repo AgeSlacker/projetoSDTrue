@@ -89,6 +89,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
     @Override
     public PacketBuilder.RESULT indexRequest(String url) throws RemoteException {
+        url.replaceAll("\n", "").replaceAll(" ", "");
         int packerReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.IndexPacket(packerReqId, url);
         sendPacket(packet, packerReqId);
@@ -139,7 +140,12 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         int packerReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.GetLinksToPagePacket(packerReqId, url);
         sendPacket(packet, packerReqId);
-        return new ArrayList<String>(); // TODO fill this list
+        ArrayList<String> links = new ArrayList<>();
+        int link_count = Integer.parseInt(receivedData.get("LINK_COUNT"));
+        for (int i = 0; i < link_count; i++) {
+            links.add(receivedData.get("LINK_" + i));
+        }
+        return links;
     }
 
     void sendPacket(DatagramPacket packet, int packetReqId) {
