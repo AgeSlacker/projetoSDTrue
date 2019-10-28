@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -13,19 +14,43 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     String username;
     String password;
     boolean isAdmin;
+    int retries;
 
     public static void main(String[] args) {
         try {
             IServer server = (IServer) Naming.lookup("//localhost:7000/RMIserver");
             IClient client = new RMIClient2(server);
             System.out.println("Executing remote call");
-            server.subscribe("client", client);
+            //server.subscribe("client", client);
             System.out.println(server.sayHello());
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NotBoundException e) {
             e.printStackTrace();
         }
+    }
+
+    void rebindServer() {
+        while (retries < 60) {
+            try {
+                this.server = (IServer) Naming.lookup("//localhost:7000/RMIserver");
+                break; // rebound successfully
+            } catch (NotBoundException e) {
+
+            } catch (MalformedURLException e) {
+                //e.printStackTrace();
+            } catch (RemoteException e) {
+                //e.printStackTrace();
+            }
+            retries++;
+            System.out.println("Rebind failed (" + retries + ")");
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        System.out.println("Rebind successful");
     }
 
     protected RMIClient2(IServer server) throws RemoteException {
@@ -69,7 +94,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     } while (choice1 == 1);
                     break;
                 case 2: //register
-                    label:
                     do {
                         System.out.println();
                         System.out.println("--------Register Page------------");
@@ -87,7 +111,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                         }
                         switch (success) {
                             case SUCCESS:
-                                break label;
+                                break;
                             case ER_USER_EXISTS:
                                 System.out.println("User already exists in database");
                                 break;

@@ -24,6 +24,9 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     public boolean isBackupServer = false;
     public IServer mainServer;
 
+    /**
+     * @throws RemoteException
+     */
     public RMIServer() throws RemoteException {
         super();
         System.getProperties().put("java.security.policy", "policy.all");
@@ -31,10 +34,8 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             socket = new MulticastSocket();
             group = InetAddress.getByName(MULTICAST_ADDRESS);
             LocateRegistry.getRegistry(7000).bind("RMIserver", this);
-
-            (new Receiver(socket)).start();
         } catch (RemoteException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // TODO see if possible new backup server without backup status
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -47,7 +48,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
                 System.out.println("Server responding, binding as backup server");
                 // Ping sucessful, re-bind as Backup
                 System.out.println("");
-                LocateRegistry.getRegistry(7000).rebind("RMIserverBACKUP", this);
+                //LocateRegistry.getRegistry(7000).rebind("RMIserverBACKUP", this);
                 this.isBackupServer = true;
                 this.mainServer = boundServer;
             } catch (NotBoundException ex) {
@@ -63,9 +64,6 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
                 }
             }
         }
-
-
-        System.out.println("RMI server waiting to receive remote calls");
 
         if (this.isBackupServer) {
             int failedPing = 0;
@@ -83,8 +81,18 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
             }
             System.out.println("Main server timed out, we have a new main server in town");
+            LocateRegistry.getRegistry(7000).rebind("RMIserver", this);
+            try {
+                socket = new MulticastSocket();
+                group = InetAddress.getByName(MULTICAST_ADDRESS);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             this.mainServer = null;
             this.isBackupServer = false;
+            (new Receiver(socket)).start();
+        } else {
+            System.out.println("RMI server waiting to receive remote calls");
             (new Receiver(socket)).start();
         }
     }
