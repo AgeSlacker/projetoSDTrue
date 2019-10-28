@@ -28,4 +28,6 @@ public interface IServer extends Remote {
     void adminOutPage(String username) throws RemoteException;
 
     void ping() throws RemoteException;
+
+    void setLogged(IClient client, String username) throws RemoteException;
 }

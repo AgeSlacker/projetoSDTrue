@@ -23,6 +23,9 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     private int PORT = 4312;
     public boolean isBackupServer = false;
     public IServer mainServer;
+    static String rmiAddress;
+    static int rmiPort;
+    static String rmiLocation;
 
     /**
      * @throws RemoteException
@@ -30,10 +33,11 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     public RMIServer() throws RemoteException {
         super();
         System.getProperties().put("java.security.policy", "policy.all");
+
         try {
             socket = new MulticastSocket();
             group = InetAddress.getByName(MULTICAST_ADDRESS);
-            LocateRegistry.getRegistry(7000).bind("RMIserver", this);
+            LocateRegistry.getRegistry(rmiPort).bind("RMIserver", this);
         } catch (RemoteException e) {
             e.printStackTrace(); // TODO see if possible new backup server without backup status
         } catch (UnknownHostException e) {
@@ -43,7 +47,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         } catch (AlreadyBoundException e) {
             try {
                 System.out.println("Server RMIserver already exists, testing connection");
-                IServer boundServer = (IServer) Naming.lookup("//localhost:7000/RMIserver");
+                IServer boundServer = (IServer) Naming.lookup(rmiLocation);
                 boundServer.ping();
                 System.out.println("Server responding, binding as backup server");
                 // Ping sucessful, re-bind as Backup
@@ -58,7 +62,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             } catch (RemoteException ex) {
                 try {
                     System.out.println("Server failed to respond, binding as main RMIserver");
-                    LocateRegistry.getRegistry(7000).rebind("RMIserver", this);
+                    LocateRegistry.getRegistry(rmiPort).rebind("RMIserver", this);
                 } catch (RemoteException exc) {
                     exc.printStackTrace();
                 }
@@ -81,7 +85,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
             }
             System.out.println("Main server timed out, we have a new main server in town");
-            LocateRegistry.getRegistry(7000).rebind("RMIserver", this);
+            LocateRegistry.getRegistry(rmiPort).rebind("RMIserver", this);
             try {
                 socket = new MulticastSocket();
                 group = InetAddress.getByName(MULTICAST_ADDRESS);
@@ -98,6 +102,12 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     public static void main(String[] args) {
+        if (args.length < 2) {
+            System.out.println("Invalid number of arguments\nUsage: RMIServer rmiIP rmiPORT");
+        }
+        rmiAddress = args[0];
+        rmiPort = Integer.parseInt(args[1]);
+        rmiLocation = "//" + rmiAddress + ":" + rmiPort + "/RMIserver";
         try {
             new RMIServer();
         } catch (RemoteException e) {
@@ -154,6 +164,11 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             }
         }
         return result;
+    }
+
+    @Override
+    public void setLogged(IClient client, String username) throws RemoteException {
+        RMIServer.loggedUsers.put(username, client);
     }
 
     @Override
