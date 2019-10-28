@@ -26,4 +26,6 @@ public interface IServer extends Remote {
     void adminInPage(String username) throws RemoteException;
 
     void adminOutPage(String username) throws RemoteException;
+
+    void ping() throws RemoteException;
 }

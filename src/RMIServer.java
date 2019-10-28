@@ -1,11 +1,8 @@
 import javax.xml.crypto.Data;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
+import java.net.*;
 import java.net.UnknownHostException;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
+import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
@@ -24,25 +21,17 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     AtomicInteger reqId = new AtomicInteger(0);
     HashMap<String, String> receivedData = null;
     private int PORT = 4312;
+    public boolean isBackupServer = false;
+    public IServer mainServer;
 
-    public RMIServer(MulticastSocket socket, InetAddress address) throws RemoteException {
+    public RMIServer() throws RemoteException {
         super();
-        System.out.println("RMI server waiting to receive remote calls");
-        this.socket = socket;
-        this.group = address;
-    }
-
-    public static void main(String[] args) {
         System.getProperties().put("java.security.policy", "policy.all");
-        IServer server = null;
         try {
-            MulticastSocket socket = new MulticastSocket();
-            InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
-            server = new RMIServer(socket, group);
-            if (args.length == 1)
-                LocateRegistry.getRegistry(7000).rebind("RMIserver" + args[0], server);
-            else
-                LocateRegistry.getRegistry(7000).rebind("RMIserver", server);
+            socket = new MulticastSocket();
+            group = InetAddress.getByName(MULTICAST_ADDRESS);
+            LocateRegistry.getRegistry(7000).bind("RMIserver", this);
+
             (new Receiver(socket)).start();
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -50,8 +39,62 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (AlreadyBoundException e) {
+            try {
+                System.out.println("Server RMIserver already exists, testing connection");
+                IServer boundServer = (IServer) Naming.lookup("//localhost:7000/RMIserver");
+                boundServer.ping();
+                System.out.println("Server responding, binding as backup server");
+                // Ping sucessful, re-bind as Backup
+                System.out.println("");
+                LocateRegistry.getRegistry(7000).rebind("RMIserverBACKUP", this);
+                this.isBackupServer = true;
+                this.mainServer = boundServer;
+            } catch (NotBoundException ex) {
+                ex.printStackTrace();
+            } catch (MalformedURLException ex) {
+                ex.printStackTrace();
+            } catch (RemoteException ex) {
+                try {
+                    System.out.println("Server failed to respond, binding as main RMIserver");
+                    LocateRegistry.getRegistry(7000).rebind("RMIserver", this);
+                } catch (RemoteException exc) {
+                    exc.printStackTrace();
+                }
+            }
         }
 
+
+        System.out.println("RMI server waiting to receive remote calls");
+
+        if (this.isBackupServer) {
+            int failedPing = 0;
+            while (failedPing < 5) {
+                try {
+                    mainServer.ping();
+                    failedPing = 0;
+                    Thread.sleep(1000);
+                } catch (RemoteException e) {
+                    System.out.println("Main server failed ping " + failedPing);
+                    failedPing++;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+            }
+            System.out.println("Main server timed out, we have a new main server in town");
+            this.mainServer = null;
+            this.isBackupServer = false;
+            (new Receiver(socket)).start();
+        }
+    }
+
+    public static void main(String[] args) {
+        try {
+            new RMIServer();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -184,6 +227,11 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         int packerReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.AdminOutLivePagePacket(packerReqId, username);
         sendPacket(packet, packerReqId);
+        return;
+    }
+
+    @Override
+    public void ping() throws RemoteException {
         return;
     }
 
