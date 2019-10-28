@@ -74,7 +74,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                         System.out.println();
                         System.out.println("--------Register Page------------");
                         System.out.println("Please insert your new credentials!(0 to cancel)");
-                        System.out.print("Login: ");
                         String login = untilNotEmpty("Login:", "Login cannot be empty!");
                         if (login.equals("0"))
                             break;
