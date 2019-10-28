@@ -259,6 +259,26 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
+    public static DatagramPacket AdminInLivePagePacket(int reqId, String user) {
+        StringBuilder sb = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|ADMIN_IN")
+                .append("USERNAME|" + user + "\n");
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+    public static DatagramPacket AdminOutLivePagePacket(int reqId, String user) {
+        StringBuilder sb = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|ADMIN_OUT")
+                .append("USERNAME|" + user + "\n");
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
 
     enum TYPE {
         REQUEST, REPLY

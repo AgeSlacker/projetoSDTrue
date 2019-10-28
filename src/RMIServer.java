@@ -171,6 +171,22 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         RMIServer.loggedUsers.remove(username);
     }
 
+    @Override
+    public void adminInPage(String username) throws RemoteException {
+        int packerReqId = reqId.getAndIncrement();
+        DatagramPacket packet = PacketBuilder.AdminInLivePagePacket(packerReqId, username);
+        sendPacket(packet, packerReqId);
+        return;
+    }
+
+    @Override
+    public void adminOutPage(String username) throws RemoteException {
+        int packerReqId = reqId.getAndIncrement();
+        DatagramPacket packet = PacketBuilder.AdminOutLivePagePacket(packerReqId, username);
+        sendPacket(packet, packerReqId);
+        return;
+    }
+
     void sendPacket(DatagramPacket packet, int packetReqId) {
         packet.setAddress(group);
         packet.setPort(PORT);

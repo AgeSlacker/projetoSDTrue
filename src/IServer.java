@@ -22,4 +22,8 @@ public interface IServer extends Remote {
     ArrayList<String> getHyperLinks(String url) throws RemoteException;
 
     void unregister(String username) throws RemoteException;
+
+    void adminInPage(String username) throws RemoteException;
+
+    void adminOutPage(String username) throws RemoteException;
 }

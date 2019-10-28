@@ -4,6 +4,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -18,6 +19,7 @@ public class MulticastServer extends Thread {
     HashMap<String, User> userList = new HashMap<>();
     HashMap<Integer, ServerInfo> servers = new HashMap<>();
     HashMap<String, Integer> searchCount = new HashMap<>();
+    ArrayList<User> currentAdmins = new ArrayList<>();
     MulticastSocket socket;
     static WebCrawler crawler;
     Screamer screamer;
@@ -219,6 +221,17 @@ public class MulticastServer extends Thread {
                         this.servers.put(id, new ServerInfo(this.id, address, port, load));
                         System.out.println(this.servers.toString());
                         continue;
+                    case "ADMIN_IN":
+                        user = userList.get(parsedData.get("USERNAME"));
+                        if (!currentAdmins.contains(user))
+                            currentAdmins.add(user);
+                        System.out.println("ADMIN IN");
+                        break;
+                    case "ADMIN_OUT":
+                        user = userList.get(parsedData.get("USERNAME"));
+                        currentAdmins.remove(user);
+                        System.out.println("ADMIN OUT");
+                        break;
                     default:
                         break;
                 }
@@ -675,6 +688,12 @@ class Search implements Serializable {
         this.time = new Date(System.currentTimeMillis());
         this.query = query;
     }
+}
+
+class AdminData {
+    ArrayList<String> topPages = new ArrayList<>();
+    ArrayList<String> topSearches = new ArrayList<>();
+    ArrayList<String> servers = new ArrayList<>();
 }
 
 class ServerInfo {
