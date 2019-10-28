@@ -214,7 +214,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                     indexURL();
                     break;
                 case 7: //system info
-
+                    systemInfo();
                     break;
                 case 0: //exit
                     break;
@@ -223,6 +223,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             }
         }
     }
+
 
     void printUserHistory() {
         try {
@@ -294,10 +295,15 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
+    void clearConsole() {
+        for (int i = 0; i < 100; i++) {
+            System.out.println();
+        }
+    }
+
     void systemInfo() {
-        /*
-        Inserir envio dos termos e print do recebido
-         */
+        //server.
+        sc.nextLine();
     }
 
     void searchMenu() {
