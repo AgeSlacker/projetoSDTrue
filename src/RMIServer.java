@@ -255,7 +255,21 @@ class Receiver extends Thread {
                             break;
                         case "ADMIN_UPDATE":
                             String user = parsedData.get("USERNAME");
-
+                            String mesage = "ALGUMA CENA LA";
+                            int count = Integer.parseInt(parsedData.get("SERVER_COUNT"));
+                            for (int i = 0; i < count; i++) {
+                                mesage = mesage + parsedData.get("SERVER_" + i) + "\n";
+                            }
+                            count = Integer.parseInt(parsedData.get("TOP_SEARCH_COUNT"));
+                            for (int i = 0; i < count; i++) {
+                                mesage = mesage + parsedData.get("SEARCH_" + i) + "\n";
+                            }
+                            count = Integer.parseInt(parsedData.get("TOP_PAGE_COUNT"));
+                            for (int i = 0; i < count; i++) {
+                                mesage = mesage + parsedData.get("PAGE_" + i) + "\n";
+                            }
+                            client = RMIServer.loggedUsers.get(user);
+                            client.printMessage(mesage);
                             break;
                     }
                 } else {

@@ -311,7 +311,7 @@ public class PacketBuilder {
             sb.append("PAGE_" + last + "|" + adminData.topPages.get(last) + "\n");
         }
 
-        // top searches
+        // top server
         s = adminData.servers.size();
         if (s == 0) {
             sb.append("SERVER_COUNT|" + s + "\n");
