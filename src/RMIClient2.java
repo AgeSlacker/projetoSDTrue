@@ -74,7 +74,6 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                         System.out.println();
                         System.out.println("--------Register Page------------");
                         System.out.println("Please insert your new credentials!(0 to cancel)");
-                        System.out.print("Login: ");
                         String login = untilNotEmpty("Login:", "Login cannot be empty!");
                         if (login.equals("0"))
                             break;
@@ -225,6 +224,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
+
     void printUserHistory() {
         try {
             ArrayList<String> history = server.getUserHistory(this, username);
@@ -295,19 +295,15 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
         }
     }
 
+    void clearConsole() {
+        for (int i = 0; i < 100; i++) {
+            System.out.println();
+        }
+    }
+
     void systemInfo() {
-        try {
-            server.adminInPage(this.username);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Type ENTER to go back.");
-        sc.nextLine(); //
-        try {
-            server.adminOutPage(this.username);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        }
+        //server.
+        sc.nextLine();
     }
 
     void searchMenu() {
