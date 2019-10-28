@@ -125,7 +125,13 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
     public int mainMenu() {
-
+        if (this.username != null) {
+            try {
+                server.unregister(this.username);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
         int choice = 0;
         do {
             System.out.println("----------------------------------");

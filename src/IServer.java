@@ -20,4 +20,6 @@ public interface IServer extends Remote {
     PacketBuilder.RESULT grantAdmin(IClient client, String user) throws RemoteException;
 
     ArrayList<String> getHyperLinks(String url) throws RemoteException;
+
+    void unregister(String username) throws RemoteException;
 }

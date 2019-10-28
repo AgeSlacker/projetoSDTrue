@@ -148,6 +148,11 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         return links;
     }
 
+    @Override
+    public void unregister(String username) {
+        RMIServer.loggedUsers.remove(username);
+    }
+
     void sendPacket(DatagramPacket packet, int packetReqId) {
         packet.setAddress(group);
         packet.setPort(PORT);
