@@ -25,6 +25,7 @@ public class MulticastServer extends Thread {
     MulticastSocket socket;
     static WebCrawler crawler;
     Screamer screamer;
+    AdminNotificator notificator;
 
 
     File usersFile;
@@ -56,6 +57,8 @@ public class MulticastServer extends Thread {
             socket.joinGroup(group);
             screamer = new Screamer(this);
             //screamer.start();
+            notificator = new AdminNotificator(this);
+            notificator.start();
             System.out.println("Begin loading data");
             try {
                 loadData();
@@ -231,6 +234,10 @@ public class MulticastServer extends Thread {
                         }
                         System.out.println("ADMIN IN");
                         response = PacketBuilder.SuccessPacket(reqId);
+                        // TEST
+                        synchronized (this.adminData.changed) {
+                            this.adminData.changed.notify();
+                        }
                         break;
                     case "ADMIN_OUT":
                         user = userList.get(parsedData.get("USERNAME"));
@@ -736,7 +743,9 @@ class AdminNotificator extends Thread {
 
             synchronized (ms.adminData.changed) {
                 try {
+                    System.out.println("Notificator waiting for changes");
                     ms.adminData.changed.wait();
+                    System.out.println("Change received, sending packet to all admins");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -744,14 +753,13 @@ class AdminNotificator extends Thread {
                     for (User user : ms.currentAdmins) {
                         InetAddress addr = null;
                         int port = 0;
-                        synchronized (ms.currentAdminAddress) {
-                            try {
-                                addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0]);
-                                port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
-                            } catch (UnknownHostException e) {
-                                e.printStackTrace();
-                            }
+                        try {
+                            addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0]);
+                            port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
+                        } catch (UnknownHostException e) {
+                            e.printStackTrace();
                         }
+
                         DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, user.username);
                         packet.setAddress(addr);
                         packet.setPort(port);
