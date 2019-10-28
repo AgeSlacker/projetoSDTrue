@@ -80,6 +80,18 @@ public class MulticastServer extends Thread {
                 DatagramPacket response = null;
                 ArrayList<DatagramPacket> extraResponses = new ArrayList<>();
                 User user;
+                if (parsedData.get("TYPE").equals(PacketBuilder.REPLY_TYPE)) {
+                    System.out.println("Received grant admin successfully delivered, removing from notification list");
+                    switch (parsedData.get("OPERATION")) {
+                        case "NOTIFICATION_DELIVERED":
+                            user = userList.get(parsedData.get("USERNAME"));
+                            user.pendingData.clear(); // TODO só ha uma notification, o user grand admin rights, adicionar mais
+                            saveUsers();
+                            break;
+                    }
+                    continue;
+                }
+
                 switch (parsedData.get("OPERATION")) {
                     case "REGISTER":
                         // Check if user exists
@@ -102,6 +114,11 @@ public class MulticastServer extends Thread {
                             // Check if correct password
                             if (user.password.equals(parsedData.get("PASSWORD"))) {
                                 response = PacketBuilder.LoginSuccessPacket(reqId, user);
+                                if (!user.pendingData.isEmpty()) {
+                                    for (DatagramPacket notification : user.pendingData) {
+                                        extraResponses.add(notification);
+                                    }
+                                }
                             } else {
                                 response = PacketBuilder.ErrorPacket(reqId, PacketBuilder.RESULT.ER_WRONG_PASS);
                             }
@@ -168,8 +185,9 @@ public class MulticastServer extends Thread {
                             userList.put(user.username, user);
                             response = PacketBuilder.SuccessPacket(reqId);
                             // TODO notify user
-                            extraResponses.add(PacketBuilder.AdminNotificationPacket(reqId, user.username));
-
+                            DatagramPacket notification = PacketBuilder.AdminNotificationPacket(reqId, user.username);
+                            user.pendingData.add(notification);
+                            extraResponses.add(notification);
                         }
                         break;
                     case "LINKED":
@@ -571,6 +589,7 @@ class User implements Serializable {
     String password;
     boolean admin;
     ArrayList<Search> search_history = new ArrayList<>();
+    ArrayList<DatagramPacket> pendingData = new ArrayList<>();
 
     public User(String username, String password, boolean isAdmin) {
         this.username = username;

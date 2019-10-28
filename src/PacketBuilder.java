@@ -24,6 +24,16 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
+    static DatagramPacket NotificationDelivered(int reqId, String name) {
+        String dataString = new StringBuilder()
+                .append(REPLY_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|NOTIFICATION_DELIVERED;")
+                .append("USER|" + name + "\n")
+                .toString();
+        byte[] data = dataString.getBytes();
+        return new DatagramPacket(data, data.length);
+    }
 
     static DatagramPacket RegisterPacket(int reqId, String username, String password) {
         StringBuilder sb = new StringBuilder();
