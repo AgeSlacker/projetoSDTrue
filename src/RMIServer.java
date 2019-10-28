@@ -234,22 +234,30 @@ class Receiver extends Thread {
                 HashMap<String, String> parsedData = PacketBuilder.parsePacketData(new String(packet.getData()));
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
                 if (parsedData.get("TYPE").equals("REQUEST")) {
-                    // TODO send notifications to users
-                    IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
-                    if (client == null) {
-                        System.out.println("User not logged in, should be delivered latter");
-                        String username = parsedData.get("USERNAME");
-                        ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
-                        notifications.add("You've been granted admin rights!");
-                        RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
-                        continue;
+                    switch (parsedData.get("OPERATION")) {
+                        case "GRANT_ADMIN_NOTIFICATION":
+                            // TODO send notifications to users
+                            IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
+                            if (client == null) {
+                                System.out.println("User not logged in, should be delivered latter");
+                                String username = parsedData.get("USERNAME");
+                                ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
+                                notifications.add("You've been granted admin rights!");
+                                RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
+                                continue;
+                            }
+                            client.setAdmin();
+                            DatagramPacket removeNotification = PacketBuilder.NotificationDelivered(reqId, parsedData.get("USERNAME"));
+                            removeNotification.setAddress(packet.getAddress());
+                            removeNotification.setPort(packet.getPort());
+                            socket.send(removeNotification);
+                            client.printMessage("You're an admin now!! yay");
+                            break;
+                        case "ADMIN_UPDATE":
+                            String user = parsedData.get("USERNAME");
+
+                            break;
                     }
-                    client.setAdmin();
-                    DatagramPacket removeNotification = PacketBuilder.NotificationDelivered(reqId, parsedData.get("USERNAME"));
-                    removeNotification.setAddress(packet.getAddress());
-                    removeNotification.setPort(packet.getPort());
-                    socket.send(removeNotification);
-                    client.printMessage("You're an admin now!! yay");
                 } else {
                     synchronized (RMIServer.waitList) {
                         RMIServer.waitList.put(reqId, parsedData);

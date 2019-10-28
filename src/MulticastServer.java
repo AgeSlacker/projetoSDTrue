@@ -20,6 +20,8 @@ public class MulticastServer extends Thread {
     HashMap<Integer, ServerInfo> servers = new HashMap<>();
     HashMap<String, Integer> searchCount = new HashMap<>();
     ArrayList<User> currentAdmins = new ArrayList<>();
+    HashMap<String, String[]> currentAdminAddress = new HashMap<>();
+    AdminData adminData = new AdminData();
     MulticastSocket socket;
     static WebCrawler crawler;
     Screamer screamer;
@@ -53,7 +55,7 @@ public class MulticastServer extends Thread {
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
             screamer = new Screamer(this);
-            screamer.start();
+            //screamer.start();
             System.out.println("Begin loading data");
             try {
                 loadData();
@@ -223,14 +225,19 @@ public class MulticastServer extends Thread {
                         continue;
                     case "ADMIN_IN":
                         user = userList.get(parsedData.get("USERNAME"));
-                        if (!currentAdmins.contains(user))
+                        if (!currentAdmins.contains(user)) {
                             currentAdmins.add(user);
+                            currentAdminAddress.put(user.username, new String[]{String.valueOf(packet.getAddress()), String.valueOf(packet.getPort())});
+                        }
                         System.out.println("ADMIN IN");
+                        response = PacketBuilder.SuccessPacket(reqId);
                         break;
                     case "ADMIN_OUT":
                         user = userList.get(parsedData.get("USERNAME"));
                         currentAdmins.remove(user);
+                        currentAdminAddress.remove(user.username);
                         System.out.println("ADMIN OUT");
+                        response = PacketBuilder.SuccessPacket(reqId);
                         break;
                     default:
                         break;
@@ -691,6 +698,7 @@ class Search implements Serializable {
 }
 
 class AdminData {
+    Object changed = new Object();
     ArrayList<String> topPages = new ArrayList<>();
     ArrayList<String> topSearches = new ArrayList<>();
     ArrayList<String> servers = new ArrayList<>();
@@ -712,5 +720,50 @@ class ServerInfo {
     @Override
     public String toString() {
         return id + " " + address + " " + port + " load: " + load;
+    }
+}
+
+class AdminNotificator extends Thread {
+    MulticastServer ms;
+
+    public AdminNotificator(MulticastServer ms) {
+        this.ms = ms;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+
+            synchronized (ms.adminData.changed) {
+                try {
+                    ms.adminData.changed.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                synchronized (ms.currentAdmins) {
+                    for (User user : ms.currentAdmins) {
+                        InetAddress addr = null;
+                        int port = 0;
+                        synchronized (ms.currentAdminAddress) {
+                            try {
+                                addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0]);
+                                port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
+                            } catch (UnknownHostException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, user.username);
+                        packet.setAddress(addr);
+                        packet.setPort(port);
+                        try {
+                            ms.socket.send(packet);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+            }
+        }
     }
 }

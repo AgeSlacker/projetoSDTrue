@@ -263,7 +263,7 @@ public class PacketBuilder {
         StringBuilder sb = new StringBuilder()
                 .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
-                .append("OPERATION|ADMIN_IN")
+                .append("OPERATION|ADMIN_IN;")
                 .append("USERNAME|" + user + "\n");
         byte[] data = sb.toString().getBytes();
         return new DatagramPacket(data, data.length);
@@ -273,8 +273,58 @@ public class PacketBuilder {
         StringBuilder sb = new StringBuilder()
                 .append(REQUEST_TYPE)
                 .append("REQ_ID|" + reqId + ";")
-                .append("OPERATION|ADMIN_OUT")
+                .append("OPERATION|ADMIN_OUT;")
                 .append("USERNAME|" + user + "\n");
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+    public static DatagramPacket AdminPagePacket(int reqId, AdminData adminData, String username) {
+        StringBuilder sb = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("USERNAME|" + username + ";")
+                .append("OPERATION|ADMIN_UPDATE;");
+        // top searches
+        int s = adminData.topSearches.size();
+        if (s == 0) {
+            sb.append("TOP_SEARCH_COUNT|" + s + "\n");
+        } else {
+            sb.append("TOP_SEARCH_COUNT|" + s + ";");
+            int last = s - 1;
+            for (int i = 0; i < last; i++) {
+                sb.append("SEARCH_" + i + "|" + adminData.topSearches.get(i) + ";");
+            }
+            sb.append("SEARCH_" + last + "|" + adminData.topSearches.get(last) + "\n");
+        }
+
+        // top searches
+        s = adminData.topPages.size();
+        if (s == 0) {
+            sb.append("TOP_PAGE_COUNT|" + s + "\n");
+        } else {
+            sb.append("TOP_PAGE_COUNT|" + s + ";");
+            int last = s - 1;
+            for (int i = 0; i < last; i++) {
+                sb.append("PAGE_" + i + "|" + adminData.topPages.get(i) + ";");
+            }
+            sb.append("PAGE_" + last + "|" + adminData.topPages.get(last) + "\n");
+        }
+
+        // top searches
+        s = adminData.servers.size();
+        if (s == 0) {
+            sb.append("SERVER_COUNT|" + s + "\n");
+        } else {
+            sb.append("SERVER_COUNT|" + s + ";");
+            int last = s - 1;
+            for (int i = 0; i < last; i++) {
+                sb.append("SERVER_" + i + "|" + adminData.servers.get(i) + ";");
+            }
+            sb.append("SERVER_" + last + "|" + adminData.servers.get(last) + "\n");
+        }
+
+
         byte[] data = sb.toString().getBytes();
         return new DatagramPacket(data, data.length);
     }
