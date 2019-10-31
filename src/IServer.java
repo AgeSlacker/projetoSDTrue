@@ -29,5 +29,10 @@ public interface IServer extends Remote {
 
     void ping() throws RemoteException;
 
+    /**
+     * @param client
+     * @param username
+     * @throws RemoteException
+     */
     void setLogged(IClient client, String username) throws RemoteException;
 }

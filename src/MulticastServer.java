@@ -573,7 +573,7 @@ class WebCrawler extends Thread {
                 }
                 url = urlList.remove(0);
                 try {
-                    sleep(1000);
+                    sleep(1000); // podia estar fora
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

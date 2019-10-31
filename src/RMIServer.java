@@ -33,7 +33,6 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     public RMIServer() throws RemoteException {
         super();
         System.getProperties().put("java.security.policy", "policy.all");
-
         try {
             socket = new MulticastSocket();
             group = InetAddress.getByName(MULTICAST_ADDRESS);
@@ -269,16 +268,15 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
                 socket.send(packet);
                 tries++;
                 // TODO buscar na waitlist
-                synchronized (this) {
-                    wait(TIMEOUT_TIME);
-                    synchronized (RMIServer.waitList) {
-                        this.receivedData = RMIServer.waitList.get(packetReqId);
-                    }
-                    if (this.receivedData != null) {
-                        System.out.println("Nice, packet received " + this.receivedData.get("REQ_ID"));
-                    } else {
-                        System.out.println("Timed out, re-sending (" + tries + ")");
-                    }
+                synchronized (RMIServer.waitList) {
+                    RMIServer.waitList.wait(TIMEOUT_TIME);
+                    this.receivedData = RMIServer.waitList.get(packetReqId);
+                }
+
+                if (this.receivedData != null) {
+                    System.out.println("Nice, packet received " + this.receivedData.get("REQ_ID"));
+                } else {
+                    System.out.println("Timed out, re-sending (" + tries + ")");
                 }
             } while (this.receivedData == null);
 
@@ -307,6 +305,7 @@ class Receiver extends Thread {
                 if (parsedData.get("TYPE").equals("REQUEST")) {
                     switch (parsedData.get("OPERATION")) {
                         case "GRANT_ADMIN_NOTIFICATION":
+                            // TODO send notifications to users
                             // TODO send notifications to users
                             IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
                             if (client == null) {

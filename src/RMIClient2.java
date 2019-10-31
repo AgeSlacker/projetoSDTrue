@@ -82,6 +82,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             // User should not be logged in
             this.username = null;
             this.password = null;
+            this.isAdmin = false; // MUDAMOS DEFESA
             choice1 = mainMenu();
             switch (choice1) {
                 case 1: //login
@@ -143,6 +144,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                                 System.out.println("User already exists in database");
                                 break;
                         }
+                        break;
                     } while (true);
                     break;
                 case 3: //Anon Search
