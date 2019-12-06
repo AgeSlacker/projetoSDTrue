@@ -1,3 +1,5 @@
+package rmiserver;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.rmi.Naming;
@@ -23,7 +25,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     public static void main(String[] args) {
         try {
             if (args.length < 2) {
-                System.out.println("Invalid number of arguments\nUsage: RMIClient rmiIP rmiPORT");
+                System.out.println("Invalid number of arguments\nUsage: rmiserver.RMIClient rmiIP rmiPORT");
             }
             rmiAddress = args[0];
             rmiPort = Integer.parseInt(args[1]);
@@ -79,7 +81,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
         int choice1 = -1;
         while (choice1 != 0) {
-            // User should not be logged in
+            // rmiserver.User should not be logged in
             this.username = null;
             this.password = null;
             this.isAdmin = false; // MUDAMOS DEFESA
@@ -110,7 +112,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                                 choice1 = -1;
                                 break;
                             case ER_NO_USER:
-                                System.out.println("User not in database");
+                                System.out.println("rmiserver.User not in database");
                                 break;
                             case ER_WRONG_PASS:
                                 System.out.println("Password does not match");
@@ -121,7 +123,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                 case 2: //register
                     do {
                         System.out.println();
-                        System.out.println("--------Register Page------------");
+                        System.out.println("--------Register rmiserver.Page------------");
                         System.out.println("Please insert your new credentials!(0 to cancel)");
                         String login = untilNotEmpty("Login:", "Login cannot be empty!");
                         if (login.equals("0"))
@@ -141,13 +143,13 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                             case SUCCESS:
                                 break;
                             case ER_USER_EXISTS:
-                                System.out.println("User already exists in database");
+                                System.out.println("rmiserver.User already exists in database");
                                 break;
                         }
                         break;
                     } while (true);
                     break;
-                case 3: //Anon Search
+                case 3: //Anon rmiserver.Search
                     searchMenu();
                     break;
                 case 0: //exit
@@ -216,7 +218,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             while (true) {
                 System.out.println();
                 System.out.println("----------------------------------");
-                System.out.println("1. Search");
+                System.out.println("1. rmiserver.Search");
                 System.out.println("2. History");
                 System.out.println("3. Consult pages hyperlinks");
                 if (this.isAdmin) {
@@ -343,7 +345,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
         switch (result) {
             case SUCCESS:
-                System.out.println("User " + username + " is now an admin.");
+                System.out.println("rmiserver.User " + username + " is now an admin.");
                 break;
             case ER_NO_USER:
                 System.out.println("No user with username: " + username);
@@ -401,7 +403,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     void searchMenu() {
         String termos = untilNotEmpty("Type in the terms you want to search:", "Not possible to search for empty word!");
         String[] words = termos.split(" ");
-        String[] results = new String[0];
+        ArrayList<Page> results = new ArrayList<>();
         while (true) {
             try {
                 results = server.search(this, words, this.username, 0);
@@ -410,11 +412,13 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                 rebindServer();
             }
         }
-        System.out.println("Search results:");
-        for (String result : results)
-            if (result != null) {
+        System.out.println("rmiserver.Search results:");
+        for (Page page : results)
+            if (page != null) {
+                System.out.println(page.name);
+                System.out.println(page.url);
+                System.out.println(page.description);
                 System.out.println("--------------------------------------");
-                System.out.println(result);
             }
         System.out.print("Press enter to exit");
         String s = sc.nextLine();

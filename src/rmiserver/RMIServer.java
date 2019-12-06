@@ -1,4 +1,5 @@
-import javax.xml.crypto.Data;
+package rmiserver;
+
 import java.io.IOException;
 import java.net.*;
 import java.net.UnknownHostException;
@@ -102,7 +103,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
     public static void main(String[] args) {
         if (args.length < 2) {
-            System.out.println("Invalid number of arguments\nUsage: RMIServer rmiIP rmiPORT");
+            System.out.println("Invalid number of arguments\nUsage: rmiserver.RMIServer rmiIP rmiPORT");
         }
         rmiAddress = args[0];
         rmiPort = Integer.parseInt(args[1]);
@@ -180,17 +181,20 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     @Override
-    public String[] search(IClient client, String[] words, String user, int page) throws RemoteException {
+    public ArrayList<Page> search(IClient client, String[] words, String user, int page) throws RemoteException {
         int packetReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user, page);
         sendPacket(packet, packetReqId);
-        client.printMessage("Seach complete");
-        String[] result = new String[10];
+        if (client != null) { // is this the way ?
+            client.printMessage("Seach complete");
+        }
+        ArrayList<Page> result = new ArrayList<Page>();
         for (int i = 0; i < Integer.parseInt(receivedData.get("PAGE_COUNT")); i++) {
             String url = receivedData.get("URL_" + i);
             String name = receivedData.get("NAME_" + i);
             String desc = receivedData.get("DESC_" + i);
-            result[i] = name + "\n" + url + "\n Description:" + desc + "\n";
+            result.add(new Page(url, name, desc));
+
         }
         return result;
 
@@ -309,7 +313,7 @@ class Receiver extends Thread {
                             // TODO send notifications to users
                             IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
                             if (client == null) {
-                                System.out.println("User not logged in, should be delivered latter");
+                                System.out.println("rmiserver.User not logged in, should be delivered latter");
                                 String username = parsedData.get("USERNAME");
                                 ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
                                 notifications.add("You've been granted admin rights!");

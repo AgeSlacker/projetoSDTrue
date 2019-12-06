@@ -1,10 +1,10 @@
-import javax.xml.crypto.Data;
+package rmiserver;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
-import java.util.ArrayDeque;
 import java.util.Scanner;
 
 
@@ -26,8 +26,8 @@ public class MulticastDirectClient extends Thread {
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             while (true) {
                 System.out.print("Send to msg: ");
-                String input = sc.nextLine()+"\n";
-                DatagramPacket packet = new DatagramPacket(input.getBytes(),input.length(),group,PORT);
+                String input = sc.nextLine() + "\n";
+                DatagramPacket packet = new DatagramPacket(input.getBytes(), input.length(), group, PORT);
                 socket.send(packet);
                 socket.receive(packet);
                 System.out.println(new String(packet.getData()));

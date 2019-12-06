@@ -1,3 +1,5 @@
+package rmiserver;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -11,9 +13,9 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 /**
- * Main thread used to boostrap the MulticastServer.
+ * Main thread used to boostrap the rmiserver.MulticastServer.
  * Receives multicast packets and treats them accordingly.
- * Creates all the other necessary threads WebCrawler, Screamer and AdminNotificator.
+ * Creates all the other necessary threads rmiserver.WebCrawler, rmiserver.Screamer and rmiserver.AdminNotificator.
  */
 public class MulticastServer extends Thread {
     String MULTICAST_ADDRESS = "224.3.2.0";
@@ -40,7 +42,7 @@ public class MulticastServer extends Thread {
     File searchCountFile;
 
     /**
-     * Used to set all the main file descriptors and creates the MulticastServer thread
+     * Used to set all the main file descriptors and creates the rmiserver.MulticastServer thread
      *
      * @param args
      */
@@ -81,7 +83,7 @@ public class MulticastServer extends Thread {
             System.out.println("Linked pages: " + crawler.linkedPages.toString());
             System.out.println("Indexed Pages: " + crawler.indexedPages.toString());
             System.out.println("URL list: " + crawler.urlList.toString());
-            System.out.printf("Search count: " + searchCount.toString());
+            System.out.printf("rmiserver.Search count: " + searchCount.toString());
 
             // Starting webcrawler
             crawler.start();
@@ -90,7 +92,7 @@ public class MulticastServer extends Thread {
                 HashMap<String, String> parsedData = null;
                 byte[] buffer = new byte[BUFF_SIZE];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                System.out.println("MS Receiver waiting for packets");
+                System.out.println("MS rmiserver.Receiver waiting for packets");
                 socket.receive(packet);
                 System.out.println("MS Received packet with message: " + new String(packet.getData()));
                 String dataStr = new String(packet.getData());
@@ -152,7 +154,7 @@ public class MulticastServer extends Thread {
                         break;
                     case "SEARCH":
                         ArrayList<String> searchWords = PacketBuilder.getSearchWords(parsedData);
-                        System.out.println("User wants to search reverse index for these words:");
+                        System.out.println("rmiserver.User wants to search reverse index for these words:");
                         System.out.println(searchWords.toString());
                         String username = parsedData.get("USERNAME");
                         // If logged user then save to hist search history
@@ -215,7 +217,7 @@ public class MulticastServer extends Thread {
                             // TODO send to other server
                         } else {
                             synchronized (crawler.urlList) {
-                                crawler.urlList.add(parsedData.get("URL"));
+                                crawler.urlList.add(0, parsedData.get("URL"));
                                 crawler.urlList.notify();
                             }
                         }
@@ -452,7 +454,7 @@ public class MulticastServer extends Thread {
 
     void saveIndex() {
         try {
-            FileOutputStream fs = new FileOutputStream(indexFile, true);
+            FileOutputStream fs = new FileOutputStream(indexFile);
             ObjectOutputStream os = new ObjectOutputStream(fs);
             os.writeObject(crawler.index);
             os.close();
@@ -549,7 +551,6 @@ class WebCrawler extends Thread {
     HashMap<String, HashSet<Page>> index = new HashMap<>();
     // url -> list of urls that link to this page
     HashMap<String, HashSet<String>> linkedPages = new HashMap<>();
-
     HashSet<String> indexedPages = new HashSet<>();
     ArrayList<String> urlList = new ArrayList<>();
 
@@ -559,6 +560,7 @@ class WebCrawler extends Thread {
 
     @Override
     public void run() {
+        (new Thread(new Saver())).start();
         System.out.println("Crawler created");
         while (true) {
             String url;
@@ -572,20 +574,17 @@ class WebCrawler extends Thread {
                     }
                 }
                 url = urlList.remove(0);
-                try {
-                    sleep(1000); // podia estar fora
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
             }
             Document doc = null;
             try {
-                if (!url.startsWith("http://") && !url.startsWith("https://"))
+                if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("localhost"))
                     url = "https://".concat(url);
+                System.out.println("[Crawler] Got link: " + url);
                 doc = Jsoup.connect(url).get();
             } catch (IOException e) {
-
+                System.out.println(e.getMessage());
             } catch (IllegalArgumentException e) {
+                System.out.println(e.getMessage());
                 continue; // As vezes acontece que o site nao dá
             }
             if (doc == null) {
@@ -635,29 +634,53 @@ class WebCrawler extends Thread {
 
             // Get and index words
             StringTokenizer tokens = new StringTokenizer(doc.text());
-            while (tokens.hasMoreElements()) {
-                String word = tokens.nextToken().toLowerCase();
-                HashSet<Page> updatedHaset = index.getOrDefault(word, new HashSet<>());
-                updatedHaset.add(currentPage);
-                index.put(word, updatedHaset);
+            synchronized (index) {
+                while (tokens.hasMoreElements()) {
+                    String word = tokens.nextToken().toLowerCase();
+                    HashSet<Page> updatedHaset = index.getOrDefault(word, new HashSet<>());
+                    updatedHaset.add(currentPage);
+                    index.put(word, updatedHaset);
+                }
             }
 
-            synchronized (index) {
-                ms.saveIndex(); // save to file
-            }
             synchronized (indexedPages) {
                 indexedPages.add(url);
-                ms.saveIndexedPages();
-            }
-            synchronized (links) {
-                ms.saveLinkedPages();
-            }
-            synchronized (urlList) {
-                ms.saveUrlList();
             }
 
             System.out.println("Words so far link: " + index.keySet().toString());
-            //System.out.println("Link connections: " + linkedFrom.keySet().toString());
+            System.out.println("Crawler : Sleeping for 1sec");
+            try {
+                sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    class Saver implements Runnable {
+
+        @Override
+        public void run() {
+            while (true) {
+                synchronized (index) {
+                    ms.saveIndex(); // save to file
+                }
+                synchronized (indexedPages) {
+                    ms.saveIndexedPages();
+                }
+                synchronized (linkedPages) {
+                    ms.saveLinkedPages();
+                }
+                synchronized (urlList) {
+                    ms.saveUrlList();
+                }
+                try {
+                    System.out.println("[Crawler] Saving to files.");
+                    sleep(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }
@@ -673,7 +696,7 @@ class Screamer extends Thread {
     @Override
     public void run() {
         while (true) {
-            System.out.println("Screamer started");
+            System.out.println("rmiserver.Screamer started");
             int load;
             synchronized (server.crawler.urlList) {
                 load = server.crawler.urlList.size();
