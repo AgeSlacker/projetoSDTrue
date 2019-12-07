@@ -785,31 +785,6 @@ class User implements Serializable {
     }
 }
 
-class Page implements Serializable {
-    String url;
-    String name;
-    String description;
-    HashSet<String> links;
-
-    public Page(String url, String name, String description) {
-        this.name = name;
-        this.url = url;
-        this.description = description;
-        this.links = new HashSet<>();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-
-        return this.url.equals(((Page) obj).url);
-    }
-
-    @Override
-    public String toString() {
-        return url;
-    }
-}
-
 class Search implements Serializable {
     Date time;
     String query;
