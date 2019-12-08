@@ -33,7 +33,6 @@ public class MulticastServer extends Thread {
     Screamer screamer;
     AdminNotificator notificator;
 
-
     File usersFile;
     File indexFile;
     File indexedPagesFile;
@@ -524,7 +523,7 @@ public class MulticastServer extends Thread {
                 System.out.println("GOT YOU");
             }
         }
-        System.out.println(pages.toString());
+        //System.out.println(pages.toString());
         return pageList;
     }
 
@@ -658,7 +657,7 @@ class WebCrawler extends Thread {
     }
 
     class Saver implements Runnable {
-
+        int saveFrequencySeconds = 1000;
         @Override
         public void run() {
             while (true) {
@@ -676,7 +675,7 @@ class WebCrawler extends Thread {
                 }
                 try {
                     System.out.println("[Crawler] Saving to files.");
-                    sleep(10000);
+                    sleep(saveFrequencySeconds * 1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

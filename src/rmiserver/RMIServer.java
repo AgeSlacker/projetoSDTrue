@@ -142,6 +142,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         sendPacket(packet, packetReqId);
         PacketBuilder.RESULT result = PacketBuilder.RESULT.valueOf(this.receivedData.get("RESULT"));
         if (Boolean.parseBoolean(receivedData.get("ADMIN"))) {
+            if (client != null)
             client.setAdmin();
         }
         synchronized (loggedUsers) {
