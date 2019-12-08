@@ -142,6 +142,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         sendPacket(packet, packetReqId);
         PacketBuilder.RESULT result = PacketBuilder.RESULT.valueOf(this.receivedData.get("RESULT"));
         if (Boolean.parseBoolean(receivedData.get("ADMIN"))) {
+            if (client != null)
             client.setAdmin();
         }
         synchronized (loggedUsers) {
@@ -182,6 +183,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
     @Override
     public ArrayList<Page> search(IClient client, String[] words, String user, int page) throws RemoteException {
+        System.out.println("[RMI] Getting search, keywords: "+words.toString());
         int packetReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user, page);
         sendPacket(packet, packetReqId);
