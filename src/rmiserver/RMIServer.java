@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RMIServer extends UnicastRemoteObject implements IServer {
@@ -214,7 +215,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         for (int i = 0; i < Integer.parseInt(receivedData.get("HIST_COUNT")); i++) {
             Date date = null;
             try {
-                date = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy").parse(receivedData.get("DATE_" + i));
+                date = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy", Locale.UK).parse(receivedData.get("DATE_" + i));
             } catch (ParseException e) {
                 e.printStackTrace();
             }
