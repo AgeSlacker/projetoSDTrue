@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Main thread used to boostrap the rmiserver.MulticastServer.
@@ -69,20 +70,24 @@ public class MulticastServer extends Thread {
             screamer.start();
             notificator = new AdminNotificator(this);
             notificator.start();
-            System.out.println("Begin loading data");
+            System.out.println("[Main] Begin loading data");
             try {
                 loadData();
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
 
-            System.out.println("Initialization ended.");
+            System.out.println("[Main] dada loaded.");
             System.out.println("Users: " + userList.toString());
-            System.out.println("Index : " + crawler.index.toString());
-            System.out.println("Linked pages: " + crawler.linkedPages.toString());
-            System.out.println("Indexed Pages: " + crawler.indexedPages.toString());
-            System.out.println("URL list: " + crawler.urlList.toString());
-            System.out.printf("rmiserver.Search count: " + searchCount.toString());
+            System.out.println("Index : " + crawler.index.size());
+            System.out.println("Linked pages: " + crawler.linkedPages.size());
+            System.out.println("Indexed Pages: " + crawler.indexedPages.size());
+            try {
+                System.out.println("URL list: " + crawler.urlList.subList(0, 10).toString());
+            } catch (Exception e) {
+
+            }
+            System.out.printf("Search count: " + searchCount.toString());
 
             // Starting webcrawler
             crawler.start();
@@ -91,9 +96,9 @@ public class MulticastServer extends Thread {
                 HashMap<String, String> parsedData = null;
                 byte[] buffer = new byte[BUFF_SIZE];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                System.out.println("MS rmiserver.Receiver waiting for packets");
+                System.out.println("[Main] Waiting for packets");
                 socket.receive(packet);
-                System.out.println("MS Received packet with message: " + new String(packet.getData()));
+                System.out.println("[Main] Received packet with message: " + new String(packet.getData()));
                 String dataStr = new String(packet.getData());
                 parsedData = PacketBuilder.parsePacketData(dataStr);
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
@@ -107,7 +112,7 @@ public class MulticastServer extends Thread {
                 // These packets are, as the name suggests, a response to the multicast server, namely to the
                 // AdminNotification packet, that sometimes needs to be stored and forwarded when the user logs in
                 if (parsedData.get("TYPE").equals("REPLY")) {
-                    System.out.println("Received grant admin successfully delivered, removing from notification list");
+                    System.out.println("[Main] Received grant admin successfully delivered, removing from notification list");
                     switch (parsedData.get("OPERATION")) {
                         case "NOTIFICATION_DELIVERED":
                             user = userList.get(parsedData.get("USERNAME"));
@@ -130,7 +135,7 @@ public class MulticastServer extends Thread {
                             userList.put(user.username, user);
                             saveUsers();
                             response = PacketBuilder.SuccessPacket(reqId);
-                            System.out.println("Registered users: " + userList.toString());
+                            //System.out.println("Registered users: " + userList.toString());
                         }
                         break;
                     case "LOGIN":
@@ -153,7 +158,7 @@ public class MulticastServer extends Thread {
                         break;
                     case "SEARCH":
                         ArrayList<String> searchWords = PacketBuilder.getSearchWords(parsedData);
-                        System.out.println("rmiserver.User wants to search reverse index for these words:");
+                        System.out.println("[Main] User wants to search reverse index for these words:");
                         System.out.println(searchWords.toString());
                         String username = parsedData.get("USERNAME");
                         // If logged user then save to hist search history
@@ -182,6 +187,7 @@ public class MulticastServer extends Thread {
                         }
                         int max = (topSearches.size() >= 10) ? 10 : topSearches.size();
                         topSearches.subList(0, max);
+                        System.out.println("[Main] Current top searches.");
                         System.out.println(topSearches);
                         this.adminData.topSearches = topSearches;
                         synchronized (this.adminData.changed) {
@@ -247,6 +253,8 @@ public class MulticastServer extends Thread {
                             String url = parsedData.get("URL");
                             if (!url.startsWith("http://") && !url.startsWith("https://"))
                                 url = "https://".concat(url);
+                            if (!url.endsWith("/"))
+                                url = url.concat("/");
                             HashSet<String> backPages = crawler.linkedPages.get(url);
                             if (backPages != null)
                                 links = new ArrayList<>(backPages);
@@ -280,7 +288,7 @@ public class MulticastServer extends Thread {
                             currentAdmins.add(user);
                             currentAdminAddress.put(user.username, new String[]{String.valueOf(packet.getAddress()), String.valueOf(packet.getPort())});
                         }
-                        System.out.println("ADMIN IN");
+                        //System.out.println("ADMIN IN");
                         response = PacketBuilder.SuccessPacket(reqId);
                         synchronized (adminData.changed) {
                             adminData.changed.notify();
@@ -291,7 +299,7 @@ public class MulticastServer extends Thread {
                         user = userList.get(parsedData.get("USERNAME"));
                         currentAdmins.remove(user);
                         currentAdminAddress.remove(user.username);
-                        System.out.println("ADMIN OUT");
+                        //System.out.println("ADMIN OUT");
                         response = PacketBuilder.SuccessPacket(reqId);
                         break;
                     default:
@@ -315,7 +323,7 @@ public class MulticastServer extends Thread {
     }
 
     private void loadData() throws IOException, ClassNotFoundException {
-        System.out.println("Loading user list");
+        //System.out.println("Loading user list");
         userList = loadUsers();
         searchCount = loadSearchCount();
         crawler.index = loadIndex();
@@ -517,10 +525,11 @@ public class MulticastServer extends Thread {
         synchronized (crawler.linkedPages) {
             // crawler.linked.get(page.url).size()
             Collections.sort(pageList, new PageComparator());
+            System.out.println("[Main] Search result sorted by number of links:");
             try {
                 pageList.forEach(page -> System.out.println(page.url + " " + crawler.linkedPages.get(page.url).size()));
             } catch (NullPointerException e) {
-                System.out.println("GOT YOU");
+
             }
         }
         //System.out.println(pages.toString());
@@ -560,10 +569,10 @@ class WebCrawler extends Thread {
     @Override
     public void run() {
         (new Thread(new Saver())).start();
-        System.out.println("Crawler created");
+        System.out.println("[Crawler] Created");
         while (true) {
             String url;
-            System.out.println("Web crawler thread started. Waiting for links");
+            System.out.println("[Crawler] Waiting for links");
             synchronized (urlList) {
                 while (urlList.isEmpty()) {
                     try {
@@ -587,13 +596,12 @@ class WebCrawler extends Thread {
                 continue; // As vezes acontece que o site nao dá
             }
             if (doc == null) {
-                System.out.println("Ignored link: " + url + "\n HTML document was null");
+                System.out.println("[Crawler] Ignored link: " + url + "\n HTML document was null");
                 continue;
             }
-            System.out.println("Web Crawler got link :" + url);
             synchronized (indexedPages) {
                 if (indexedPages.contains(url)) {
-                    System.out.println("This link is already indexed...");
+                    System.out.println("[Crawler] link is already indexed...");
                     continue; // TODO why is this necessary
                 }
             }
@@ -626,7 +634,7 @@ class WebCrawler extends Thread {
                     // Temos que verificar se a propria pagina n tem varios links para a mesma cena
                     if (!indexedPages.contains(linkSt) && !urlList.contains(linkSt) && !linkSt.equals(url)) {
                         urlList.add(linkSt);
-                        System.out.println("Added link to urllist: " + linkSt);
+                        //System.out.println("Added link to urllist: " + linkSt);
                     }
                 }
             }
@@ -646,8 +654,8 @@ class WebCrawler extends Thread {
                 indexedPages.add(url);
             }
 
-            System.out.println("Words so far link: " + index.keySet().toString());
-            System.out.println("Crawler : Sleeping for 1sec");
+            System.out.println("[Crawler] Number of indexed words:" + index.keySet().size());
+            System.out.println("[Crawler] Sleeping for 1sec");
             try {
                 sleep(1000);
             } catch (InterruptedException e) {
@@ -658,6 +666,7 @@ class WebCrawler extends Thread {
 
     class Saver implements Runnable {
         int saveFrequencySeconds = 1000;
+
         @Override
         public void run() {
             while (true) {
@@ -674,7 +683,7 @@ class WebCrawler extends Thread {
                     ms.saveUrlList();
                 }
                 try {
-                    System.out.println("[Crawler] Saving to files.");
+                    System.out.println("[Crawler] Saving to files. Current save freq: " + saveFrequencySeconds + " seconds");
                     sleep(saveFrequencySeconds * 1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -695,7 +704,7 @@ class Screamer extends Thread {
     @Override
     public void run() {
         while (true) {
-            System.out.println("rmiserver.Screamer started");
+            System.out.println("[Screamer] started");
             int load;
             synchronized (server.crawler.urlList) {
                 load = server.crawler.urlList.size();
@@ -708,7 +717,7 @@ class Screamer extends Thread {
                 myStatus.setAddress(group);
                 myStatus.setPort(server.PORT);
                 server.socket.send(myStatus);
-                System.out.println("Packet sent, sleeping");
+                System.out.println("[Screamer] Broadcast packet sent, sleeping 10sec");
                 sleep(10000);
             } catch (IOException e) {
                 e.printStackTrace();
@@ -732,9 +741,9 @@ class AdminNotificator extends Thread {
 
             synchronized (ms.adminData.changed) {
                 try {
-                    System.out.println("Notificator waiting for changes");
+                    System.out.println("[Notificator] waiting for changes");
                     ms.adminData.changed.wait();
-                    System.out.println("Change received, sending packet to all admins");
+                    System.out.println("[Notificator] Change received, sending packet to all admins");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
