@@ -11,7 +11,6 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Main thread used to boostrap the rmiserver.MulticastServer.
@@ -790,16 +789,6 @@ class User implements Serializable {
     @Override
     public String toString() {
         return " Admin: " + this.admin + " " + this.username + " " + this.password;
-    }
-}
-
-class Search implements Serializable {
-    Date time;
-    String query;
-
-    public Search(String query) {
-        this.time = new Date(System.currentTimeMillis());
-        this.query = query;
     }
 }
 

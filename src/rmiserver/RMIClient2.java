@@ -283,7 +283,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
 
     void printUserHistory() {
-        ArrayList<String> history;
+        ArrayList<Search> history;
         while (true) {
             try {
                 history = server.getUserHistory(this, username);
@@ -293,7 +293,10 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             }
         }
         System.out.println("Your history:");
-        history.forEach(hist -> System.out.println(hist));
+        for (Search s :
+                history) {
+            System.out.println("Date: " + s.date + " " + s.query);
+        }
     }
 
     String untilNotEmpty(String ask, String repifnull) {

@@ -142,10 +142,10 @@ public class PacketBuilder {
         } else {
             sb.append("HIST_COUNT|" + history.size() + ";");
             for (int i = 0; i < history.size() - 1; i++) {
-                sb.append("DATE_" + i + "|" + history.get(i).time + ";");
+                sb.append("DATE_" + i + "|" + history.get(i).date + ";");
                 sb.append("QUERY_" + i + "|" + history.get(i).query + ";");
             }
-            sb.append("DATE_" + (history.size() - 1) + "|" + history.get((history.size() - 1)).time + ";");
+            sb.append("DATE_" + (history.size() - 1) + "|" + history.get((history.size() - 1)).date + ";");
             sb.append("QUERY_" + (history.size() - 1) + "|" + history.get((history.size() - 1)).query + "\n");
         }
 

@@ -6,7 +6,10 @@ import java.net.UnknownHostException;
 import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -143,7 +146,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         PacketBuilder.RESULT result = PacketBuilder.RESULT.valueOf(this.receivedData.get("RESULT"));
         if (Boolean.parseBoolean(receivedData.get("ADMIN"))) {
             if (client != null)
-            client.setAdmin();
+                client.setAdmin();
         }
         synchronized (loggedUsers) {
             if (result == PacketBuilder.RESULT.SUCCESS) {
@@ -183,7 +186,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
     @Override
     public ArrayList<Page> search(IClient client, String[] words, String user, int page) throws RemoteException {
-        System.out.println("[RMI] Getting search, keywords: "+words.toString());
+        System.out.println("[RMI] Getting search, keywords: " + words.toString());
         int packetReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.SearchPacket(packetReqId, words, user, page);
         sendPacket(packet, packetReqId);
@@ -203,15 +206,20 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     @Override
-    public ArrayList<String> getUserHistory(IClient client, String username) throws RemoteException {
+    public ArrayList<Search> getUserHistory(IClient client, String username) throws RemoteException {
         int packetReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.RequestHistoryPacket(packetReqId, username);
         sendPacket(packet, packetReqId);
-        ArrayList<String> history = new ArrayList<>();
+        ArrayList<Search> history = new ArrayList<>();
         for (int i = 0; i < Integer.parseInt(receivedData.get("HIST_COUNT")); i++) {
-            String date = receivedData.get("DATE_" + i);
+            Date date = null;
+            try {
+                date = new SimpleDateFormat("EEE MMM dd HH:mm:ss z yyyy").parse(receivedData.get("DATE_" + i));
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
             String query = receivedData.get("QUERY_" + i);
-            history.add(date + " | " + query);
+            history.add(new Search(date, query));
         }
         return history;
     }
