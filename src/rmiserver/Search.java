@@ -3,7 +3,7 @@ package rmiserver;
 import java.io.Serializable;
 import java.util.Date;
 
-class Search implements Serializable {
+public class Search implements Serializable {
     Date date;
     String query;
 
@@ -15,5 +15,13 @@ class Search implements Serializable {
     public Search(Date date, String query) {
         this.date = date;
         this.query = query;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
+    public String getQuery() {
+        return query;
     }
 }
