@@ -301,6 +301,10 @@ public class MulticastServer extends Thread {
                         //System.out.println("ADMIN OUT");
                         response = PacketBuilder.SuccessPacket(reqId);
                         break;
+                    case "REQUEST_USER_LIST":
+                        ArrayList<User> users = new ArrayList<User>(userList.values());
+                        response = PacketBuilder.UserListPacket(reqId, users);
+                        break;
                     default:
                         break;
                 }
@@ -770,25 +774,6 @@ class AdminNotificator extends Thread {
 
             }
         }
-    }
-}
-
-class User implements Serializable {
-    String username;
-    String password;
-    boolean admin;
-    ArrayList<Search> search_history = new ArrayList<>();
-    ArrayList<DatagramPacket> pendingData = new ArrayList<>();
-
-    public User(String username, String password, boolean isAdmin) {
-        this.username = username;
-        this.password = password;
-        this.admin = isAdmin;
-    }
-
-    @Override
-    public String toString() {
-        return " Admin: " + this.admin + " " + this.username + " " + this.password;
     }
 }
 

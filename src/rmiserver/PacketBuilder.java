@@ -321,6 +321,39 @@ public class PacketBuilder {
         return new DatagramPacket(data, data.length);
     }
 
+    public static DatagramPacket GetUsersPacket(int reqId) {
+        StringBuilder sb = new StringBuilder()
+                .append(REQUEST_TYPE)
+                .append("REQ_ID|" + reqId + ";")
+                .append("OPERATION|REQUEST_USER_LIST\n");
+        byte[] data = sb.toString().getBytes();
+        return new DatagramPacket(data, data.length);
+    }
+
+    public static DatagramPacket UserListPacket(int reqId, ArrayList<User> users) {
+        StringBuilder sb = new StringBuilder()
+                .append(REPLY_TYPE)
+                .append("REQ_ID|" + reqId + ";");
+        if (users.size() == 0) {
+            sb.append("USER_COUNT|0\n");
+        } else {
+            sb.append("USER_COUNT|" + users.size() + ";");
+            for (int i = 0; i < users.size() - 1; i++) {
+                User u = users.get(i);
+                sb.append("USERNAME_" + i + "|" + u.username + ";")
+                        .append("ADMIN_" + i + "|" + u.admin + ";");
+                // TODO apend username and admin count
+            }
+            User lastUser = users.get(users.size() - 1);
+            sb.append("USERNAME_" + (users.size() - 1) + "|" + lastUser.username + ";")
+                    .append("ADMIN_" + (users.size() - 1) + "|" + lastUser.admin + "\n");
+        }
+
+        byte[] data = sb.toString().getBytes();
+        return new
+
+                DatagramPacket(data, data.length);
+    }
 
     enum TYPE {
         REQUEST, REPLY

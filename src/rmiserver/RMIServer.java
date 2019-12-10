@@ -140,6 +140,20 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
     }
 
     @Override
+    public ArrayList<User> listUsers(IClient client) throws RemoteException {
+        int packetReqId = reqId.getAndIncrement();
+        DatagramPacket packet = PacketBuilder.GetUsersPacket(packetReqId);
+        sendPacket(packet, packetReqId);
+        ArrayList<User> users = new ArrayList<>();
+        for (int i = 0; i < Integer.parseInt(receivedData.get("USER_COUNT")); i++) {
+            String name = receivedData.get("USERNAME_" + i);
+            boolean isAdmin = Boolean.parseBoolean(receivedData.get("ADMIN_" + i));
+            users.add(new User(name, null, isAdmin));
+        }
+        return users;
+    }
+
+    @Override
     public PacketBuilder.RESULT login(IClient client, String name, String password) throws RemoteException {
         int packetReqId = reqId.getAndIncrement();
         DatagramPacket packet = PacketBuilder.LoginPacket(packetReqId, name, password);
