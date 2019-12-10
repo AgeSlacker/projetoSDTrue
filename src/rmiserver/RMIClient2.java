@@ -293,8 +293,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
             }
         }
         System.out.println("Your history:");
-        for (Search s :
-                history) {
+        for (Search s : history) {
             System.out.println("Date: " + s.date + " " + s.query);
         }
     }
