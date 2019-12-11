@@ -71,7 +71,7 @@ public class PacketBuilder {
     }
 
     static DatagramPacket SuccessPacket(int reqId) {
-        return PacketBuilder.ErrorPacket(reqId, RESULT.SUCCESS); // TODO isAdmin tag
+        return PacketBuilder.ErrorPacket(reqId, RESULT.SUCCESS);
     }
 
     static DatagramPacket ErrorPacket(int reqId, RESULT result) {
@@ -342,7 +342,6 @@ public class PacketBuilder {
                 User u = users.get(i);
                 sb.append("USERNAME_" + i + "|" + u.username + ";")
                         .append("ADMIN_" + i + "|" + u.admin + ";");
-                // TODO apend username and admin count
             }
             User lastUser = users.get(users.size() - 1);
             sb.append("USERNAME_" + (users.size() - 1) + "|" + lastUser.username + ";")
