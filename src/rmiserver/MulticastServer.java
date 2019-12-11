@@ -668,7 +668,7 @@ class WebCrawler extends Thread {
     }
 
     class Saver implements Runnable {
-        int saveFrequencySeconds = 1000;
+        int saveFrequencySeconds = 60;
 
         @Override
         public void run() {

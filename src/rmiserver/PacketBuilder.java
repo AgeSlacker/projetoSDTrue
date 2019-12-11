@@ -161,9 +161,9 @@ public class PacketBuilder {
             String token = tk.nextToken();
             // TODO check if token is invalid
             StringTokenizer splitter = new StringTokenizer(token, "|");
-            if (splitter.countTokens() >= 2) {
+            if (splitter.hasMoreTokens()) {
                 String key = splitter.nextToken();
-                String val = splitter.nextToken();
+                String val = splitter.hasMoreTokens() ? splitter.nextToken() : "";
                 hashMap.put(key, val);
             } else {
                 return null;
