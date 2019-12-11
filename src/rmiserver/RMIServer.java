@@ -345,12 +345,13 @@ class Receiver extends Thread {
                                 RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
                                 continue;
                             }
+                            // TODO try and catch client unreachable
                             client.setAdmin();
+                            client.printMessage("You've been granted admin rights!");
                             DatagramPacket removeNotification = PacketBuilder.NotificationDelivered(reqId, parsedData.get("USERNAME"));
                             removeNotification.setAddress(packet.getAddress());
                             removeNotification.setPort(packet.getPort());
                             socket.send(removeNotification);
-                            client.printMessage("You're an admin now!! yay");
                             break;
                         case "ADMIN_UPDATE":
                             String user = parsedData.get("USERNAME");
