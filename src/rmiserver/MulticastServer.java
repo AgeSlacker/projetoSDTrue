@@ -667,7 +667,7 @@ class WebCrawler extends Thread {
                 for (Element link : links) {
                     //System.out.println(link.text() + "\n" + link.attr("abs:href") + "\n");
                     String linkSt = link.attr("abs:href");
-                    if (linkSt.contains("@"))
+                    if (linkSt.contains("@") || linkSt.isEmpty())
                         continue;
                     HashSet<String> linkedFrom = linkedPages.getOrDefault(linkSt, new HashSet<>());
                     linkedFrom.add(url);
