@@ -673,7 +673,7 @@ class WebCrawler extends Thread {
                     linkedFrom.add(url);
                     synchronized (linkedPages) {
                         linkedPages.put(linkSt, linkedFrom);
-                        int numLinksToThisLink = linkedPages.size();
+                        int numLinksToThisLink = linkedFrom.size();
                         if (numLinksToThisLink > ms.adminData.minPagesLinks) {
                             synchronized (ms.adminData) {
                                 System.out.println("[Crawler] new top site : " + linkSt + " new min: " + numLinksToThisLink);

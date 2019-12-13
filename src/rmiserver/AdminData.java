@@ -3,6 +3,7 @@ package rmiserver;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 
 public class AdminData implements Serializable {
     private static final int MAX_SLOTS = 10;
@@ -17,22 +18,28 @@ public class AdminData implements Serializable {
     }
 
     public void insertNewTopPage(String url, int count) {
+        boolean updated = false;
         TopPage newPage = new TopPage(url, count);
-        for (int i = 0; i <= topPages.size(); i--) {
-            if (topPages.size() == 0) {
-                topPages.add(newPage);
-                return;
-            }
-            TopPage tempPage = topPages.get(i);
-            if (newPage.count >= tempPage.count) {
-                topPages.add(i, newPage);
+
+        for (TopPage p : topPages) {
+            if (p.url.equals(newPage.url)) {
+                p.count = newPage.count;
+                updated = true;
                 break;
             }
         }
+        if (!updated) topPages.add(newPage);
+        topPages.sort(new Comparator<TopPage>() {
+            @Override
+            public int compare(TopPage o1, TopPage o2) {
+                return o2.count - o1.count;
+            }
+        });
+
         if (topPages.size() > MAX_SLOTS) {
             topPages.remove(MAX_SLOTS);
+            minPagesLinks = topPages.get(topPages.size() - 1).count;
         }
-        minPagesLinks = topPages.get(topPages.size() - 1).count;
     }
 
 }
