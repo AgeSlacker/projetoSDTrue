@@ -21,6 +21,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     static String rmiAddress;
     static int rmiPort;
     static String rmiLocation;
+    private boolean userInUpdateScreen = false;
 
     public static void main(String[] args) {
         try {
@@ -168,9 +169,11 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
 
     @Override
     public void updateAdminScreen(AdminData adminData) throws RemoteException {
-        adminData.topPages.forEach(page -> System.out.println(page.getCount() + " | " + page.getUrl()));
-        adminData.topSearches.forEach(search -> System.out.println(search));
-        adminData.servers.forEach(server -> System.out.println(server));
+        if (userInUpdateScreen) {
+            adminData.topPages.forEach(page -> System.out.println(page.getCount() + " | " + page.getUrl()));
+            adminData.topSearches.forEach(search -> System.out.println(search));
+            adminData.servers.forEach(server -> System.out.println(server));
+        }
     }
 
     @Override
@@ -390,6 +393,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
     void systemInfo() {
+        userInUpdateScreen = true;
         while (true) {
             try {
                 server.adminInPage(this.username);
@@ -407,6 +411,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
                 rebindServer();
             }
         }
+        userInUpdateScreen = false;
     }
 
     void searchMenu() {

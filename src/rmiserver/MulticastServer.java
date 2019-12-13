@@ -32,6 +32,7 @@ public class MulticastServer extends Thread {
     static WebCrawler crawler;
     Screamer screamer;
     AdminNotificator notificator;
+    InetAddress group;
 
     File usersFile;
     File indexFile;
@@ -65,7 +66,7 @@ public class MulticastServer extends Thread {
         socket = null;
         try {
             socket = new MulticastSocket(PORT);  // create socket and bind it
-            InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
+            group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
             System.out.println("[Main] Begin loading data");
             try {
@@ -100,6 +101,11 @@ public class MulticastServer extends Thread {
                 System.out.println("[Main] Waiting for packets");
                 socket.receive(packet);
                 System.out.println("[Main] Received packet with message: " + new String(packet.getData()));
+                InetAddress rmiServerAddress = packet.getAddress();
+                //System.out.println("[Main] Adding new RMI address+port");
+                synchronized (currentAdmins) {
+                    notificator.RMIConnections.put(rmiServerAddress, packet.getPort());
+                }
                 String dataStr = new String(packet.getData());
                 parsedData = PacketBuilder.parsePacketData(dataStr);
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
@@ -114,12 +120,14 @@ public class MulticastServer extends Thread {
                 // AdminNotification packet, that sometimes needs to be stored and forwarded when the user logs in
                 if (parsedData.get("TYPE").equals("REPLY")) {
                     System.out.println("[Main] Received grant admin successfully delivered, removing from notification list");
-                    switch (parsedData.get("OPERATION")) {
-                        case "NOTIFICATION_DELIVERED":
-                            user = userList.get(parsedData.get("USERNAME"));
-                            user.pendingData.clear(); // TODO só ha uma notification, o user grand admin rights, adicionar mais
-                            saveUsers();
-                            break;
+                    if (parsedData != null && parsedData.containsKey("OPERATION")) {
+                        switch (parsedData.get("OPERATION")) {
+                            case "NOTIFICATION_DELIVERED":
+                                user = userList.get(parsedData.get("USERNAME"));
+                                user.pendingData.clear(); // TODO só ha uma notification, o user grand admin rights, adicionar mais
+                                saveUsers();
+                                break;
+                        }
                     }
                     continue;
                 }
@@ -310,7 +318,7 @@ public class MulticastServer extends Thread {
                         response = PacketBuilder.UserListPacket(reqId, users);
                         break;
                     default:
-                        break;
+                        continue;
                 }
                 response.setPort(packet.getPort());
                 response.setAddress(packet.getAddress());
@@ -781,6 +789,7 @@ class Screamer extends Thread {
 
 class AdminNotificator extends Thread {
     MulticastServer ms;
+    HashMap<InetAddress, Integer> RMIConnections = new HashMap<>();
 
     public AdminNotificator(MulticastServer ms) {
         this.ms = ms;
@@ -798,6 +807,20 @@ class AdminNotificator extends Thread {
                     e.printStackTrace();
                 }
                 synchronized (ms.currentAdmins) {
+                    // Try send trough multicast
+                    DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, "admin");
+
+                    for (Map.Entry<InetAddress, Integer> connection : RMIConnections.entrySet()) {
+                        packet.setAddress(connection.getKey());
+                        packet.setPort(connection.getValue());
+                        try {
+                            ms.socket.send(packet);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    /*
                     for (User user : ms.currentAdmins) {
                         InetAddress addr = null;
                         int port = 0;
@@ -812,12 +835,13 @@ class AdminNotificator extends Thread {
                         DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, user.username);
                         packet.setAddress(addr);
                         packet.setPort(port);
+
                         try {
                             ms.socket.send(packet);
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                    }
+                    }*/
                 }
 
             }

@@ -4,21 +4,20 @@ import java.io.IOException;
 import java.net.*;
 import java.net.UnknownHostException;
 import java.rmi.*;
+import java.rmi.ConnectException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RMIServer extends UnicastRemoteObject implements IServer {
 
     static HashMap<Integer, HashMap<String, String>> waitList = new HashMap<>();
     private static String MULTICAST_ADDRESS = "224.3.2.0";
-    static HashMap<String, IClient> loggedUsers = new HashMap<>(); // TODO change to syncronized hashmap ?
+    static HashMap<String, ClientInfo> loggedUsers = new HashMap<>(); // TODO change to syncronized hashmap ?
+
     static HashMap<String, ArrayList<String>> notifications = new HashMap<>();
     int TIMEOUT_TIME = 1000;
     MulticastSocket socket;
@@ -41,6 +40,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         try {
             socket = new MulticastSocket();
             group = InetAddress.getByName(MULTICAST_ADDRESS);
+            socket.joinGroup(group);
             LocateRegistry.getRegistry(rmiPort).bind("RMIserver", this);
         } catch (RemoteException e) {
             e.printStackTrace(); // TODO see if possible new backup server without backup status
@@ -159,13 +159,15 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
         DatagramPacket packet = PacketBuilder.LoginPacket(packetReqId, name, password);
         sendPacket(packet, packetReqId);
         PacketBuilder.RESULT result = PacketBuilder.RESULT.valueOf(this.receivedData.get("RESULT"));
-        if (Boolean.parseBoolean(receivedData.get("ADMIN"))) {
+        boolean isAdmin = Boolean.parseBoolean(receivedData.get("ADMIN"));
+        if (isAdmin) {
             if (client != null)
                 client.setAdmin();
         }
         synchronized (loggedUsers) {
             if (result == PacketBuilder.RESULT.SUCCESS) {
-                loggedUsers.put(name, client);
+                ClientInfo clientInfo = new ClientInfo(client, isAdmin);
+                loggedUsers.put(name, clientInfo);
             }
             System.out.println("Current logged users: " + loggedUsers.keySet().toString());
         }
@@ -187,7 +189,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
 
     @Override
     public void setLogged(IClient client, String username) throws RemoteException {
-        RMIServer.loggedUsers.put(username, client);
+        RMIServer.loggedUsers.put(username, new ClientInfo(client, false)); // TODO: should re-ask client for login, admin as false
     }
 
     @Override
@@ -327,7 +329,7 @@ class Receiver extends Thread {
         while (true) {
             System.out.println("Reciever ready to receive");
             try {
-                socket.receive(packet);
+                this.socket.receive(packet);
                 System.out.println("Reciever receieved new packet : " + new String(packet.getData()));
                 HashMap<String, String> parsedData = PacketBuilder.parsePacketData(new String(packet.getData()));
                 int reqId = Integer.parseInt(parsedData.get("REQ_ID"));
@@ -336,10 +338,10 @@ class Receiver extends Thread {
                         case "GRANT_ADMIN_NOTIFICATION":
                             // TODO send notifications to users
                             // TODO send notifications to users
-                            IClient client = RMIServer.loggedUsers.get(parsedData.get("USERNAME"));
+                            String username = parsedData.get("USERNAME");
+                            IClient client = RMIServer.loggedUsers.get(username).client;
                             if (client == null) {
                                 System.out.println("rmiserver.User not logged in, should be delivered latter");
-                                String username = parsedData.get("USERNAME");
                                 ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
                                 notifications.add("You've been granted admin rights!");
                                 RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
@@ -372,8 +374,19 @@ class Receiver extends Thread {
                                         Integer.parseInt(parsedData.get("PAGE_LINKS_NUM_" + i)));
                                 adminData.topPages.add(topPage);
                             }
-                            client = RMIServer.loggedUsers.get(user);
-                            client.updateAdminScreen(adminData);
+                            for (Map.Entry<String, ClientInfo> clientEntry : RMIServer.loggedUsers.entrySet()) {
+                                client = clientEntry.getValue().client;
+                                boolean isAdmin = clientEntry.getValue().isAdmin;
+                                if (isAdmin) {
+                                    try {
+                                        client.updateAdminScreen(adminData);
+                                    } catch (ConnectException e) {
+                                        // TODO reestablish connection with user. For now, simply delete user from table
+                                        System.out.println("Removing " + user + " from user list");
+                                        RMIServer.loggedUsers.remove(user);
+                                    }
+                                }
+                            }
                             break;
                     }
                 } else {
@@ -386,5 +399,15 @@ class Receiver extends Thread {
                 e.printStackTrace();
             }
         }
+    }
+}
+
+class ClientInfo {
+    IClient client;
+    boolean isAdmin;
+
+    public ClientInfo(IClient client, boolean isAdmin) {
+        this.client = client;
+        this.isAdmin = isAdmin;
     }
 }
