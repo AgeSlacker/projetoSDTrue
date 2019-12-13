@@ -350,6 +350,9 @@ class Receiver extends Thread {
                             // TODO try and catch client unreachable
                             client.setAdmin();
                             client.printMessage("You've been granted admin rights!");
+                            ClientInfo infoForUpdate = RMIServer.loggedUsers.get(username);
+                            infoForUpdate.isAdmin = true;
+                            RMIServer.loggedUsers.put(username, infoForUpdate);
                             DatagramPacket removeNotification = PacketBuilder.NotificationDelivered(reqId, parsedData.get("USERNAME"));
                             removeNotification.setAddress(packet.getAddress());
                             removeNotification.setPort(packet.getPort());
