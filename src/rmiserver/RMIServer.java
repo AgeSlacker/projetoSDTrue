@@ -354,25 +354,26 @@ class Receiver extends Thread {
                             socket.send(removeNotification);
                             break;
                         case "ADMIN_UPDATE":
+                            AdminData adminData = new AdminData();
                             String user = parsedData.get("USERNAME");
-                            String message = "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; // :'(
                             int count = Integer.parseInt(parsedData.get("SERVER_COUNT"));
-                            message = message + "Servers:\n";
                             for (int i = 0; i < count; i++) {
-                                message = message + parsedData.get("SERVER_" + i) + "\n";
+                                adminData.servers.add(parsedData.get("SERVER_" + i));
                             }
-                            message = message + "Top searches: ";
                             count = Integer.parseInt(parsedData.get("TOP_SEARCH_COUNT"));
                             for (int i = 0; i < count; i++) {
-                                message = message + parsedData.get("SEARCH_" + i) + "\n";
+                                adminData.topSearches.add(parsedData.get("SEARCH_" + i));
                             }
 
                             count = Integer.parseInt(parsedData.get("TOP_PAGE_COUNT"));
                             for (int i = 0; i < count; i++) {
-                                message = message + parsedData.get("PAGE_" + i) + "\n";
+                                TopPage topPage = new TopPage(
+                                        parsedData.get("PAGE_" + i),
+                                        Integer.parseInt(parsedData.get("PAGE_LINKS_NUM_" + i)));
+                                adminData.topPages.add(topPage);
                             }
                             client = RMIServer.loggedUsers.get(user);
-                            client.printMessage(message + "\n\n Type ENTER to exit");
+                            client.updateAdminScreen(adminData);
                             break;
                     }
                 } else {

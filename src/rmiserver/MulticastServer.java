@@ -39,6 +39,7 @@ public class MulticastServer extends Thread {
     File linksFile;
     File urlListFile;
     File searchCountFile;
+    File adminDataFile;
 
     /**
      * Used to set all the main file descriptors and creates the rmiserver.MulticastServer thread
@@ -54,6 +55,7 @@ public class MulticastServer extends Thread {
         multicastServer.linksFile = new File("links" + multicastServer.id + ".bin");
         multicastServer.urlListFile = new File("urlList" + multicastServer.id + ".bin");
         multicastServer.searchCountFile = new File("searchCount" + multicastServer.id + ".bin");
+        multicastServer.adminDataFile = new File("adminData" + multicastServer.id + ".bin");
         multicastServer.start();
         WebCrawler webCrawler = new WebCrawler(multicastServer);
         MulticastServer.crawler = webCrawler;
@@ -65,10 +67,6 @@ public class MulticastServer extends Thread {
             socket = new MulticastSocket(PORT);  // create socket and bind it
             InetAddress group = InetAddress.getByName(MULTICAST_ADDRESS);
             socket.joinGroup(group);
-            screamer = new Screamer(this);
-            screamer.start();
-            notificator = new AdminNotificator(this);
-            notificator.start();
             System.out.println("[Main] Begin loading data");
             try {
                 loadData();
@@ -87,9 +85,13 @@ public class MulticastServer extends Thread {
 
             }
             System.out.printf("Search count: " + searchCount.toString());
-
+            System.out.println("[WebServer] Spawining child threads");
             // Starting webcrawler
             crawler.start();
+            screamer = new Screamer(this);
+            screamer.start();
+            notificator = new AdminNotificator(this);
+            notificator.start();
 
             while (true) {
                 HashMap<String, String> parsedData = null;
@@ -188,9 +190,10 @@ public class MulticastServer extends Thread {
                         topSearches.subList(0, max);
                         System.out.println("[Main] Current top searches.");
                         System.out.println(topSearches);
-                        this.adminData.topSearches = topSearches;
-                        synchronized (this.adminData.changed) {
-                            this.adminData.changed.notify();
+                        synchronized (this.adminData) {
+                            this.adminData.topSearches = topSearches;
+                            this.adminData.notify();
+                            saveAdminData();
                         }
                         saveSearchCount();
 
@@ -275,9 +278,10 @@ public class MulticastServer extends Thread {
                                 String addr = entry.getValue().address.toString();
                                 connecterServers.add("ID: " + serverId + " " + addr + ":" + serverPORT);
                             }
-                            adminData.servers = connecterServers;
-                            synchronized (adminData.changed) {
-                                adminData.changed.notify();
+                            synchronized (adminData) {
+                                adminData.servers = connecterServers;
+                                adminData.notify();
+                                saveAdminData();
                             }
                         }
                         continue;
@@ -289,8 +293,8 @@ public class MulticastServer extends Thread {
                         }
                         //System.out.println("ADMIN IN");
                         response = PacketBuilder.SuccessPacket(reqId);
-                        synchronized (adminData.changed) {
-                            adminData.changed.notify();
+                        synchronized (adminData) {
+                            adminData.notify();
                         }
                         // TEST
                         break;
@@ -329,6 +333,7 @@ public class MulticastServer extends Thread {
         //System.out.println("Loading user list");
         userList = loadUsers();
         searchCount = loadSearchCount();
+        loadAdminData();
         crawler.index = loadIndex();
         crawler.indexedPages = loadIndexedPages();
         crawler.urlList = loadUrlList();
@@ -348,6 +353,42 @@ public class MulticastServer extends Thread {
             urlListFile.createNewFile();
         }
         return urlList;
+    }
+
+    void loadAdminData() {
+        try {
+            if (adminDataFile.exists() && adminDataFile.length() > 0) {
+                FileInputStream fs = new FileInputStream(adminDataFile);
+                ObjectInputStream os = new ObjectInputStream(fs);
+                this.adminData = (AdminData) os.readObject();
+                os.close();
+                fs.close();
+            } else {
+                adminDataFile.createNewFile();
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void saveAdminData() {
+        synchronized (this.adminData) {
+            try {
+                FileOutputStream fs = new FileOutputStream(adminDataFile);
+                ObjectOutputStream os = new ObjectOutputStream(fs);
+                os.writeObject(this.adminData);
+                os.close();
+                fs.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     void saveUrlList() {
@@ -502,8 +543,6 @@ public class MulticastServer extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-
     }
 
     ArrayList<Page> findPagesWithWords(ArrayList<String> words) {
@@ -624,6 +663,7 @@ class WebCrawler extends Thread {
             // Get all page links
             Elements links = doc.select("a[href]");
             synchronized (urlList) { // TODO distribuir a carga com outros servers
+                HashSet<String> linksInThisPage = new HashSet<>();
                 for (Element link : links) {
                     //System.out.println(link.text() + "\n" + link.attr("abs:href") + "\n");
                     String linkSt = link.attr("abs:href");
@@ -633,6 +673,14 @@ class WebCrawler extends Thread {
                     linkedFrom.add(url);
                     synchronized (linkedPages) {
                         linkedPages.put(linkSt, linkedFrom);
+                        int numLinksToThisLink = linkedPages.size();
+                        if (numLinksToThisLink > ms.adminData.minPagesLinks) {
+                            synchronized (ms.adminData) {
+                                System.out.println("[Crawler] new top site : " + linkSt + " new min: " + numLinksToThisLink);
+                                ms.adminData.insertNewTopPage(linkSt, numLinksToThisLink);
+                                ms.adminData.notify();
+                            }
+                        }
                     }
                     // Temos que verificar se a propria pagina n tem varios links para a mesma cena
                     if (!indexedPages.contains(linkSt) && !urlList.contains(linkSt) && !linkSt.equals(url)) {
@@ -741,11 +789,10 @@ class AdminNotificator extends Thread {
     @Override
     public void run() {
         while (true) {
-
-            synchronized (ms.adminData.changed) {
+            synchronized (ms.adminData) {
                 try {
                     System.out.println("[Notificator] waiting for changes");
-                    ms.adminData.changed.wait();
+                    ms.adminData.wait();
                     System.out.println("[Notificator] Change received, sending packet to all admins");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -755,6 +802,7 @@ class AdminNotificator extends Thread {
                         InetAddress addr = null;
                         int port = 0;
                         try {
+                            // TODO porque isto tudo, podiamos ter mandado por multicast...
                             addr = InetAddress.getByName(ms.currentAdminAddress.get(user.username)[0].replaceAll("/", ""));
                             port = Integer.parseInt(ms.currentAdminAddress.get(user.username)[1]);
                         } catch (UnknownHostException e) {
@@ -775,13 +823,6 @@ class AdminNotificator extends Thread {
             }
         }
     }
-}
-
-class AdminData {
-    Object changed = new Object();
-    ArrayList<String> topPages = new ArrayList<>();
-    ArrayList<String> topSearches = new ArrayList<>();
-    ArrayList<String> servers = new ArrayList<>();
 }
 
 class ServerInfo {

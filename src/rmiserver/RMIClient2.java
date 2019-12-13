@@ -167,6 +167,13 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     }
 
     @Override
+    public void updateAdminScreen(AdminData adminData) throws RemoteException {
+        adminData.topPages.forEach(page -> System.out.println(page.getUrl() + page.getCount()));
+        adminData.topSearches.forEach(search -> System.out.println(search));
+        adminData.servers.forEach(server -> System.out.println(server));
+    }
+
+    @Override
     public boolean isAlive() throws RemoteException {
         return true;
     }

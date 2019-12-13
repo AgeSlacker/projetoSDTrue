@@ -288,7 +288,6 @@ public class PacketBuilder {
         int s = adminData.topSearches.size();
         sb.append("TOP_SEARCH_COUNT|" + s + ";");
         if (s != 0) {
-            sb.append("TOP_SEARCH_COUNT|" + s + ";");
             int last = s;
             for (int i = 0; i < last; i++)
                 sb.append("SEARCH_" + i + "|" + adminData.topSearches.get(i) + ";");
@@ -297,10 +296,12 @@ public class PacketBuilder {
         s = adminData.topPages.size();
         sb.append("TOP_PAGE_COUNT|" + s + ";");
         if (s != 0) {
-            sb.append("TOP_PAGE_COUNT|" + s + ";");
             int last = s;
-            for (int i = 0; i < last; i++)
-                sb.append("PAGE_" + i + "|" + adminData.topPages.get(i) + ";");
+            for (int i = 0; i < last; i++) {
+                sb.append("PAGE_" + i + "|" + adminData.topPages.get(i).url + ";");
+                sb.append("PAGE_LINKS_NUM_" + i + "|" + adminData.topPages.get(i).count + ";");
+            }
+
         }
 
         // top server
