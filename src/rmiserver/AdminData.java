@@ -2,16 +2,15 @@ package rmiserver;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 
 public class AdminData implements Serializable {
     private static final int MAX_SLOTS = 10;
     int topSearchesSlots = 10;
     int minPagesLinks = 0;
-    ArrayList<TopPage> topPages = new ArrayList<>();
-    ArrayList<String> topSearches = new ArrayList<>();
-    ArrayList<String> servers = new ArrayList<>();
+    public ArrayList<TopPage> topPages = new ArrayList<>();
+    public ArrayList<String> topSearches = new ArrayList<>();
+    public ArrayList<String> servers = new ArrayList<>();
 
     public void insertNewTopSearch(String search, int count) {
 
@@ -44,20 +43,3 @@ public class AdminData implements Serializable {
 
 }
 
-class TopPage implements Serializable {
-    int count;
-    String url;
-
-    public TopPage(String url, int count) {
-        this.url = url;
-        this.count = count;
-    }
-
-    public int getCount() {
-        return count;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-}
