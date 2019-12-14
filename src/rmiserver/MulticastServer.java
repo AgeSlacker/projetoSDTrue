@@ -6,10 +6,11 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
-import java.net.UnknownHostException;
+import java.net.*;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.*;
 
 /**
@@ -273,38 +274,57 @@ public class MulticastServer extends Thread {
                         break;
                     case "DISCOVERY":
                         int id = Integer.parseInt(parsedData.get("REQ_ID"));
-                        if (!this.servers.containsKey(id)) {
-                            InetAddress address = InetAddress.getByName(parsedData.get("ADDRESS"));
-                            int port = Integer.parseInt(parsedData.get("PORT"));
-                            int load = Integer.parseInt(parsedData.get("LOAD"));
-                            this.servers.put(id, new ServerInfo(id, address, port, load));
 
-                            ArrayList<String> connecterServers = new ArrayList<>();
-                            for (Map.Entry<Integer, ServerInfo> entry : servers.entrySet()) {
-                                int serverId = entry.getValue().id;
-                                int serverPORT = entry.getValue().port;
-                                String addr = entry.getValue().address.toString();
-                                connecterServers.add("ID: " + serverId + " " + addr + ":" + serverPORT);
+                        InetAddress address = InetAddress.getByName(parsedData.get("ADDRESS"));
+                        int port = Integer.parseInt(parsedData.get("PORT"));
+                        int load = Integer.parseInt(parsedData.get("LOAD"));
+                        ServerInfo serverInfo = new ServerInfo(id, address, port, load, LocalDateTime.now());
+                        if (this.servers.containsKey(id)) {
+                            ServerInfo oldServerInfo = this.servers.get(id);
+                            if (serverInfo.equals(oldServerInfo)) {
+                                // Update seen
+                                oldServerInfo.lastSeen = LocalDateTime.now();
+                            } else {
+                                // Possible duplicate with the same id.
+                                System.out.printf("[MAIN] Some server trying to register with duplicate ID. Ignoreing");
+                                continue;
                             }
-                            synchronized (adminData) {
-                                adminData.servers = connecterServers;
-                                adminData.notify();
-                                saveAdminData();
-                            }
+                        } else {
+                            this.servers.put(id, serverInfo);
                         }
+
+                        ArrayList<String> connecterServers = new ArrayList<>();
+                        for (Map.Entry<Integer, ServerInfo> entry : servers.entrySet()) {
+                            int serverId = entry.getValue().id;
+                            int serverPORT = entry.getValue().port;
+                            String addr = entry.getValue().address.toString();
+                            Duration diff = Duration.between(entry.getValue().lastSeen, LocalDateTime.now());
+                            if (diff.getSeconds() < 10)
+                                connecterServers.add("ID: " + serverId + " " + addr + ":" + serverPORT);
+                        }
+                        synchronized (adminData) {
+                            adminData.servers = connecterServers;
+                            adminData.notify();
+                            saveAdminData();
+                        }
+
                         continue;
                     case "ADMIN_IN":
                         user = userList.get(parsedData.get("USERNAME"));
-                        if (!currentAdmins.contains(user)) {
-                            currentAdmins.add(user);
-                            currentAdminAddress.put(user.username, new String[]{String.valueOf(packet.getAddress()), String.valueOf(packet.getPort())});
+                        if (user != null) { // Happens because dumb ideia to save logged users in user list
+                            if (!currentAdmins.contains(user)) {
+                                currentAdmins.add(user);
+                                currentAdminAddress.put(user.username, new String[]{String.valueOf(packet.getAddress()), String.valueOf(packet.getPort())});
+                            }
+                            //System.out.println("ADMIN IN");
+                            response = PacketBuilder.SuccessPacket(reqId);
+                            synchronized (adminData) {
+                                adminData.notify();
+                            }
+                            // TEST
+                        } else {
+                            continue;
                         }
-                        //System.out.println("ADMIN IN");
-                        response = PacketBuilder.SuccessPacket(reqId);
-                        synchronized (adminData) {
-                            adminData.notify();
-                        }
-                        // TEST
                         break;
                     case "ADMIN_OUT":
                         user = userList.get(parsedData.get("USERNAME"));
@@ -858,17 +878,30 @@ class ServerInfo {
     int port;
     int load;
     int id;
+    LocalDateTime lastSeen;
 
-    public ServerInfo(int id, InetAddress address, int port, int load) {
+    public ServerInfo(int id, InetAddress address, int port, int load, LocalDateTime lastSeen) {
         this.id = id;
         this.address = address;
         this.port = port;
         this.load = load;
+        this.lastSeen = lastSeen;
     }
 
     @Override
     public String toString() {
         return id + " " + address + " " + port + " load: " + load;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ServerInfo) {
+            obj = (ServerInfo) obj;
+            return (this.id == ((ServerInfo) obj).id &&
+                    this.address.equals(((ServerInfo) obj).address) &&
+                    this.port == ((ServerInfo) obj).port);
+        }
+        return false;
     }
 }
 
