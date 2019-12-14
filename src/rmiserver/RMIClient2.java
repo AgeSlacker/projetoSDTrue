@@ -171,7 +171,7 @@ public class RMIClient2 extends UnicastRemoteObject implements IClient {
     public void updateAdminScreen(AdminData adminData) throws RemoteException {
         if (userInUpdateScreen) {
             adminData.topPages.forEach(page -> System.out.println(page.getCount() + " | " + page.getUrl()));
-            adminData.topSearches.forEach(search -> System.out.println(search));
+            adminData.topSearches.forEach(search -> System.out.println(search.count + " | " + search.search));
             adminData.servers.forEach(server -> System.out.println(server));
         }
     }

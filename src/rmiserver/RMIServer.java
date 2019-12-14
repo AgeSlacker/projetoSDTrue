@@ -308,6 +308,7 @@ public class RMIServer extends UnicastRemoteObject implements IServer {
                     System.out.println("Nice, packet received " + this.receivedData.get("REQ_ID"));
                 } else {
                     System.out.println("Timed out, re-sending (" + tries + ")");
+                    System.out.println("[RMIServer] PacketData: " + new String(packet.getData()));
                 }
             } while (this.receivedData == null);
 
@@ -339,14 +340,15 @@ class Receiver extends Thread {
                             // TODO send notifications to users
                             // TODO send notifications to users
                             String username = parsedData.get("USERNAME");
-                            IClient client = RMIServer.loggedUsers.get(username).client;
-                            if (client == null) {
+                            ClientInfo clientInfo = RMIServer.loggedUsers.get(username);
+                            if (clientInfo == null) {
                                 System.out.println("rmiserver.User not logged in, should be delivered latter");
                                 ArrayList<String> notifications = RMIServer.notifications.getOrDefault(username, new ArrayList<>());
                                 notifications.add("You've been granted admin rights!");
                                 RMIServer.notifications.put(parsedData.get("USERNAME"), notifications);
                                 continue;
                             }
+                            IClient client = clientInfo.client;
                             // TODO try and catch client unreachable
                             client.setAdmin();
                             client.printMessage("You've been granted admin rights!");
@@ -367,7 +369,11 @@ class Receiver extends Thread {
                             }
                             count = Integer.parseInt(parsedData.get("TOP_SEARCH_COUNT"));
                             for (int i = 0; i < count; i++) {
-                                adminData.topSearches.add(parsedData.get("SEARCH_" + i));
+                                TopSearch topSearch = new TopSearch(
+                                        parsedData.get("SEARCH_" + i),
+                                        Integer.parseInt(parsedData.get("SEARCH_COUNT_" + i))
+                                );
+                                adminData.topSearches.add(topSearch);
                             }
 
                             count = Integer.parseInt(parsedData.get("TOP_PAGE_COUNT"));
@@ -377,16 +383,18 @@ class Receiver extends Thread {
                                         Integer.parseInt(parsedData.get("PAGE_LINKS_NUM_" + i)));
                                 adminData.topPages.add(topPage);
                             }
-                            for (Map.Entry<String, ClientInfo> clientEntry : RMIServer.loggedUsers.entrySet()) {
-                                client = clientEntry.getValue().client;
-                                boolean isAdmin = clientEntry.getValue().isAdmin;
-                                if (isAdmin) {
-                                    try {
-                                        client.updateAdminScreen(adminData);
-                                    } catch (ConnectException e) {
-                                        // TODO reestablish connection with user. For now, simply delete user from table
-                                        System.out.println("Removing " + user + " from user list");
-                                        RMIServer.loggedUsers.remove(user);
+                            synchronized (RMIServer.loggedUsers) {
+                                for (Map.Entry<String, ClientInfo> clientEntry : RMIServer.loggedUsers.entrySet()) {
+                                    client = clientEntry.getValue().client;
+                                    boolean isAdmin = clientEntry.getValue().isAdmin;
+                                    if (isAdmin) {
+                                        try {
+                                            client.updateAdminScreen(adminData);
+                                        } catch (ConnectException e) {
+                                            // TODO reestablish connection with user. For now, simply delete user from table
+                                            System.out.println("Removing " + user + " from user list");
+                                            RMIServer.loggedUsers.remove(user);
+                                        }
                                     }
                                 }
                             }

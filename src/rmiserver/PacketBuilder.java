@@ -289,8 +289,10 @@ public class PacketBuilder {
         sb.append("TOP_SEARCH_COUNT|" + s + ";");
         if (s != 0) {
             int last = s;
-            for (int i = 0; i < last; i++)
-                sb.append("SEARCH_" + i + "|" + adminData.topSearches.get(i) + ";");
+            for (int i = 0; i < last; i++) {
+                sb.append("SEARCH_" + i + "|" + adminData.topSearches.get(i).search + ";");
+                sb.append("SEARCH_COUNT_" + i + "|" + adminData.topSearches.get(i).count + ";");
+            }
         }
         // top searches
         s = adminData.topPages.size();

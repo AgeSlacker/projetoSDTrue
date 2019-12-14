@@ -190,9 +190,9 @@ public class MulticastServer extends Thread {
                                 return second.getValue() - first.getValue();
                             }
                         });
-                        ArrayList<String> topSearches = new ArrayList<>();
+                        ArrayList<TopSearch> topSearches = new ArrayList<>();
                         for (Map.Entry<String, Integer> entry : sortedTopSearches) {
-                            topSearches.add("( " + entry.getValue() + " )" + entry.getKey());
+                            topSearches.add(new TopSearch(entry.getKey(), entry.getValue()));
                         }
                         int max = (topSearches.size() >= 10) ? 10 : topSearches.size();
                         topSearches.subList(0, max);
@@ -322,6 +322,9 @@ public class MulticastServer extends Thread {
                 }
                 response.setPort(packet.getPort());
                 response.setAddress(packet.getAddress());
+
+                System.out.println("[MAIN] Sending answer to " + packet.getAddress() + " " + packet.getPort());
+
                 socket.send(response);
 
                 for (DatagramPacket extraPacket : extraResponses) {
@@ -814,6 +817,7 @@ class AdminNotificator extends Thread {
                         packet.setAddress(connection.getKey());
                         packet.setPort(connection.getValue());
                         try {
+                            System.out.println("[NOTIFICATOR] Sending packet to " + connection.getKey() + " " + connection.getValue());
                             ms.socket.send(packet);
                         } catch (IOException e) {
                             e.printStackTrace();

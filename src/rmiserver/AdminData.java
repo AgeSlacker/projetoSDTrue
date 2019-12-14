@@ -8,12 +8,34 @@ public class AdminData implements Serializable {
     private static final int MAX_SLOTS = 10;
     int topSearchesSlots = 10;
     int minPagesLinks = 0;
+    int minSearchesCount = 0;
     public ArrayList<TopPage> topPages = new ArrayList<>();
-    public ArrayList<String> topSearches = new ArrayList<>();
+    public ArrayList<TopSearch> topSearches = new ArrayList<>();
     public ArrayList<String> servers = new ArrayList<>();
 
     public void insertNewTopSearch(String search, int count) {
+        boolean updated = false;
+        TopSearch newSearch = new TopSearch(search, count);
 
+        for (TopSearch s : topSearches) {
+            if (s.search.equals(newSearch.search)) {
+                s.count = newSearch.count;
+                updated = true;
+                break;
+            }
+        }
+        if (!updated) topSearches.add(newSearch);
+        topSearches.sort(new Comparator<TopSearch>() {
+            @Override
+            public int compare(TopSearch o1, TopSearch o2) {
+                return o2.count - o1.count;
+            }
+        });
+
+        if (topSearches.size() > MAX_SLOTS) {
+            topSearches.remove(MAX_SLOTS);
+            minSearchesCount = topSearches.get(topSearches.size() - 1).count;
+        }
     }
 
     public void insertNewTopPage(String url, int count) {
