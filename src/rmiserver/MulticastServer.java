@@ -104,8 +104,10 @@ public class MulticastServer extends Thread {
                 System.out.println("[Main] Received packet with message: " + new String(packet.getData()));
                 InetAddress rmiServerAddress = packet.getAddress();
                 //System.out.println("[Main] Adding new RMI address+port");
+                RMIConnection connection = new RMIConnection(rmiServerAddress, packet.getPort());
                 synchronized (currentAdmins) {
-                    notificator.RMIConnections.put(rmiServerAddress, packet.getPort());
+                    if (!notificator.RMIConnections.contains(connection))
+                        notificator.RMIConnections.add(connection);
                 }
                 String dataStr = new String(packet.getData());
                 parsedData = PacketBuilder.parsePacketData(dataStr);
@@ -317,13 +319,14 @@ public class MulticastServer extends Thread {
                                 currentAdminAddress.put(user.username, new String[]{String.valueOf(packet.getAddress()), String.valueOf(packet.getPort())});
                             }
                             //System.out.println("ADMIN IN");
-                            response = PacketBuilder.SuccessPacket(reqId);
                             synchronized (adminData) {
                                 adminData.notify();
                             }
                             // TEST
-                        } else {
-                            continue;
+                        }
+                        response = PacketBuilder.SuccessPacket(reqId);
+                        synchronized (adminData) {
+                            adminData.notify();
                         }
                         break;
                     case "ADMIN_OUT":
@@ -812,7 +815,7 @@ class Screamer extends Thread {
 
 class AdminNotificator extends Thread {
     MulticastServer ms;
-    HashMap<InetAddress, Integer> RMIConnections = new HashMap<>();
+    ArrayList<RMIConnection> RMIConnections = new ArrayList<>();
 
     public AdminNotificator(MulticastServer ms) {
         this.ms = ms;
@@ -833,11 +836,11 @@ class AdminNotificator extends Thread {
                     // Try send trough multicast
                     DatagramPacket packet = PacketBuilder.AdminPagePacket(0, ms.adminData, "admin");
 
-                    for (Map.Entry<InetAddress, Integer> connection : RMIConnections.entrySet()) {
-                        packet.setAddress(connection.getKey());
-                        packet.setPort(connection.getValue());
+                    for (RMIConnection connection : RMIConnections) {
+                        packet.setAddress(connection.address);
+                        packet.setPort(connection.port);
                         try {
-                            System.out.println("[NOTIFICATOR] Sending packet to " + connection.getKey() + " " + connection.getValue());
+                            System.out.println("[NOTIFICATOR] Sending packet to " + connection.address + " " + connection.port);
                             ms.socket.send(packet);
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -905,3 +908,20 @@ class ServerInfo {
     }
 }
 
+class RMIConnection {
+    InetAddress address;
+    int port;
+
+    public RMIConnection(InetAddress address, int port) {
+        this.address = address;
+        this.port = port;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof RMIConnection) {
+            return (((RMIConnection) obj).port == this.port && ((RMIConnection) obj).address.equals(address));
+        }
+        return false;
+    }
+}
